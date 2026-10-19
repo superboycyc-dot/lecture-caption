@@ -1,0 +1,15 @@
+[project]
+name = "lecture-caption"
+version = "0.3.0"
+description = "macOS bilingual lecture captions and live Markdown notes using your own cloud API key"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F"]
+ignore = ["F401"]

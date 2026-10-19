@@ -1,0 +1,19 @@
+# Bundled component notices
+
+Generated from installed distribution metadata. Each component retains its own terms.
+
+- certifi 2026.10.18: 1 distribution license/notice files retained.
+- cffi 2.1.1: 1 distribution license/notice files retained.
+- charset-normalizer 3.5.2: 1 distribution license/notice files retained.
+- idna 3.20: 1 distribution license/notice files retained.
+- numpy 2.5.4: 17 distribution license/notice files retained.
+- pycparser 3.11: 1 distribution license/notice files retained.
+- PySide6_Essentials 6.12.0: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.
+- requests 2.34.2: 2 distribution license/notice files retained.
+- scipy 1.18.1: 1 distribution license/notice files retained.
+- shiboken6 6.12.0: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.
+- sounddevice 0.5.6: 1 distribution license/notice files retained.
+- urllib3 2.8.0: 1 distribution license/notice files retained.
+- pyinstaller 6.22.3: 1 distribution license/notice files retained.
+
+Qt/PySide corresponding sources: https://code.qt.io/pyside/pyside-setup.git/ and https://code.qt.io/qt/qtbase.git/ (matching release tags). See THIRD_PARTY_NOTICES.md and docs/RELEASING.md.
