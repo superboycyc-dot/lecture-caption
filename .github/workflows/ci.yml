@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 25
     env:
       QT_QPA_PLATFORM: offscreen
-      LECTURE_CAPTION_DATA_DIR: ${{ runner.temp }}/lecture-caption-ci
+      LECTURE_CAPTION_DATA_DIR: /tmp/lecture-caption-ci
       GROQ_API_KEY: ci-placeholder-not-a-real-key
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -36,6 +36,6 @@ jobs:
         if: always()
         with:
           name: ui-smoke-previews
-          path: ${{ runner.temp }}/lecture-caption-ci/logs/*preview.png
+          path: /tmp/lecture-caption-ci/logs/*preview.png
           if-no-files-found: ignore
           retention-days: 7
