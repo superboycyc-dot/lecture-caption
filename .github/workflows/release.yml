@@ -12,7 +12,7 @@ jobs:
       contents: write
     env:
       QT_QPA_PLATFORM: offscreen
-      LECTURE_CAPTION_DATA_DIR: ${{ runner.temp }}/lecture-caption-release
+      LECTURE_CAPTION_DATA_DIR: /tmp/lecture-caption-release
       GROQ_API_KEY: ci-placeholder-not-a-real-key
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
