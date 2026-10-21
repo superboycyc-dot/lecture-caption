@@ -12,6 +12,40 @@ from test_pipeline import Signals
 
 
 class LocalTests(unittest.TestCase):
+    def test_regular_recognition_does_not_implicitly_download_assets(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(local_services, "NATIVE_ROOT", Path(tmp)),
+            patch.object(local_services.platform, "system", return_value="Darwin"),
+        ):
+            (Path(tmp) / "LocalSpeech").touch()
+            with patch.object(
+                local_services.subprocess, "run", return_value=Mock(returncode=0, stdout=b'{"text":"synthetic words"}')
+            ) as run:
+                audio = np.ones(16000, dtype=np.float32)
+                self.assertEqual(local_services.transcribe(audio), "synthetic words")
+                args, kwargs = run.call_args
+                self.assertNotIn("--prepare", args[0])
+                self.assertEqual(kwargs["input"], audio.astype("<f4").tobytes())
+                self.assertEqual(kwargs["timeout"], 45)
+
+    def test_explicit_resource_preparation_uses_dedicated_command(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(local_services, "NATIVE_ROOT", Path(tmp)),
+            patch.object(local_services.platform, "system", return_value="Darwin"),
+            patch.object(local_services.platform, "mac_ver", return_value=("26.6", (), "arm64")),
+        ):
+            (Path(tmp) / "LocalSpeech").touch()
+            with patch.object(
+                local_services.subprocess, "run", return_value=Mock(returncode=0, stdout=b'{"text":"ready"}')
+            ) as run:
+                self.assertEqual(local_services.prepare_speech(), "ready")
+                args, kwargs = run.call_args
+                self.assertIn("--prepare", args[0])
+                self.assertEqual(kwargs["input"], b"")
+                self.assertEqual(kwargs["timeout"], 600)
+
     def test_helper_errors_never_echo_stderr_or_audio(self):
         with (
             tempfile.TemporaryDirectory() as tmp,

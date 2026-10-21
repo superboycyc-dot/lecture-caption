@@ -71,6 +71,7 @@ class Signals(QObject):
     note_status = Signal(str)
     level = Signal(int)
     quota = Signal(str)
+    speech_ready = Signal(bool, str)
     tested = Signal(bool, str)
     credential_result = Signal(str, bool, str)
 
@@ -418,6 +419,7 @@ class Controls(QWidget):
         self.sig.credential_result.connect(self.credential_result)
         self.sig.level.connect(self.level.setValue)
         self.sig.quota.connect(self.set_server_quota)
+        self.sig.speech_ready.connect(self.speech_prepared)
         self.quota_timer = QTimer(self)
         self.quota_timer.timeout.connect(self.refresh_quota)
         self.quota_timer.start(3000)
@@ -443,6 +445,9 @@ class Controls(QWidget):
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         form.setVerticalSpacing(14)
+        self.speech_prepare = QPushButton("准备 Apple 英文语音资源（macOS 26+）…")
+        self.speech_prepare.clicked.connect(self.prepare_speech)
+        form.addRow(self.speech_prepare)
         prepare = QPushButton("准备 Apple 英中翻译语言包…")
         prepare.clicked.connect(self.prepare_translation)
         form.addRow(prepare)
@@ -573,6 +578,26 @@ class Controls(QWidget):
     def set_server_quota(self, message):
         self.server_quota.setText(message)
         self.server_quota.setToolTip(message + "\n最近响应快照，不是费用余额或所有模型的实时总额度。")
+
+    def prepare_speech(self):
+        from local_services import prepare_speech
+
+        self.speech_prepare.setEnabled(False)
+        self.status.setText("正在检查/准备 Apple 英文语音资源，首次下载可能需要几分钟…")
+
+        def run():
+            try:
+                self.sig.speech_ready.emit(True, prepare_speech())
+            except RuntimeError as error:
+                self.sig.speech_ready.emit(False, str(error))
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def speech_prepared(self, ok, message):
+        self.speech_prepare.setEnabled(not self.engine.active)
+        self.status.setText(message)
+        if not ok:
+            self.error(message)
 
     def prepare_translation(self):
         from local_services import prepare_translation
@@ -729,6 +754,7 @@ class Controls(QWidget):
             self.remember_key,
             self.stt_backend,
             self.translation_backend,
+            self.speech_prepare,
         ):
             w.setEnabled(not active)
 

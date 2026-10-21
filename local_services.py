@@ -6,14 +6,14 @@ import subprocess
 from core import NATIVE_ROOT, ApiError
 
 
-def run_helper(name, payload, timeout=30):
+def run_helper(name, payload, timeout=30, arguments=()):
     helper = NATIVE_ROOT / name
     if platform.system() != "Darwin" or not helper.exists():
         raise ApiError("Apple 本地组件不可用，请使用已打包的 Mac App，或先编译 native helpers。")
     if name == "LocalTranslate" and int(platform.mac_ver()[0].split(".")[0]) < 15:
         raise ApiError("Apple 本地翻译需要 macOS 15 或更新版本。")
     try:
-        result = subprocess.run([str(helper)], input=payload, capture_output=True, timeout=timeout)
+        result = subprocess.run([str(helper), *arguments], input=payload, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         raise ApiError("Apple 本地处理超时，请检查系统语言资源和权限后重试。") from None
     try:
@@ -27,7 +27,7 @@ def run_helper(name, payload, timeout=30):
 
 
 def transcribe(audio):
-    return run_helper("LocalSpeech", audio.astype("<f4").tobytes(), timeout=25)
+    return run_helper("LocalSpeech", audio.astype("<f4").tobytes(), timeout=45)
 
 
 def translate(text):
@@ -41,3 +41,9 @@ def prepare_translation():
     subprocess.Popen(
         [str(helper), "--prepare"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
+
+
+def prepare_speech():
+    if platform.system() != "Darwin" or int(platform.mac_ver()[0].split(".")[0]) < 26:
+        raise ApiError("新的 Apple 英文语音资源管理需要 macOS 26+；旧系统请使用 Groq 或系统英文听写。")
+    return run_helper("LocalSpeech", b"", timeout=600, arguments=("--prepare",))

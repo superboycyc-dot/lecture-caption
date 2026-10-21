@@ -2,6 +2,8 @@
 
 ## 0.4.0 — 2026-10-21
 
+- Fix Apple local recognition on macOS 26 using SpeechAnalyzer instead of legacy dictation; add explicit in-app model preparation, compatible audio conversion and sanitized error codes. Verified with generated CS speech and Apple translation.
+
 - Move CI/release builds to supported macOS 26 runners; macOS 14 runner images retire November 2, 2026.
 
 - One resizable workspace: notes left, bilingual transcript right; settings open on demand.
