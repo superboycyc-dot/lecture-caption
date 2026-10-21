@@ -1,34 +1,15 @@
 # User guide
 
-See the [Chinese step-by-step guide](USER_GUIDE.zh-CN.md) for the current UI labels.
+The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Pin and opacity apply to the whole window.
 
-## Inputs
+Click Settings to configure your Keychain credential, backends, models, glossary, note generation, chunk length and font size. The settings dialog is hidden by default. Preferences persist across restarts.
 
-Choose one input at a time: the Mac microphone (in-person class) or system audio (calls, video and browser playback). System audio uses ScreenCaptureKit; it does not save screen images and requires the corresponding macOS capture permission. Other sounds playing on the Mac can also be captured. It does not mix in your own microphone.
+New segments are highlighted and smoothly followed. Scroll up to read history without being pulled down; click “回到最新” to resume. The last 300 segments remain on screen; the complete transcript is stored locally. Translation updates replace their own segment, without duplicating cards.
 
-## Credentials
+Cloud mode needs your Groq key. Local mode uses Apple Speech and Apple Translate: select both in Settings and prepare the English/Chinese language packs. Apple translation requires macOS 15+. Speech requires supported on-device English dictation resources and Speech Recognition permission. If resources are missing, enable English Dictation in Keyboard settings. No automatic cloud fallback occurs. Disable automatic notes for key-free local captions; structured notes still require Groq and send recognized text.
 
-Create a Groq key in its official console. Paste into the masked field and test. Keep “验证成功后保存到钥匙串” enabled to save after success, or press “保存 key”. Deleting a saved key clears the app field and disables automatic re-save; it does not revoke the provider key. Cancelled/locked Keychain access falls back to manual entry, not plaintext storage. A SHA-256 digest identifies the pair of configured endpoint URLs; the secret itself is stored reversibly by the OS Keychain, because hashing alone cannot authenticate API calls.
+Captions remain chunked near-real-time, not word-by-word interpretation. Local speech uses roughly 2–3 second chunks and is experimental. The course glossary currently applies to cloud recognition only. Local services still use system models and consume power.
 
-## Windows and notes
+Stop releases capture and discards incomplete/queued audio, marking gaps. Wait for the last sentence before stopping if you want it retained. Previously queued note generation may finish after stopping. Notes and transcript events live in ~/Library/Application Support/Lecture Caption/sessions/. No raw recording is saved. The quota display is local speech-API accounting, not provider-wide remaining quota or text-model usage.
 
-Pin and opacity work independently per window. Opacity applies to text and background together. Settings currently reset on restart. Open the notes window to read or copy raw Markdown, request immediate organization, or open its folder. The text may need manual verification. Notes accumulate per app run; pause/resume continues the same document.
-
-## Custom servers
-
-Copy `config.example.json` into the app data directory as `config.json` and edit the base URLs/model IDs. Speech expects `/audio/transcriptions` with multipart WAV. Text expects `/chat/completions`, messages and `max_completion_tokens`. A single credential is currently shared between both configured providers. Do not configure an unrelated server if it should not receive that credential. Exact endpoint pairs have separate Keychain entries. Changes require restarting.
-
-The built-in connection check tests the speech server's `/models` endpoint. When text and speech endpoints differ, successful validation does not prove the text server is reachable. First validate using a small test lecture.
-
-## Troubleshooting
-
-- No sound: inspect the input selection, macOS permission and volume meter; lower the noise threshold for quiet speech.
-- System audio denied: enable the app in Privacy & Security → Screen & System Audio Recording and relaunch.
-- 401/403: check the credential and model permissions.
-- 429: stop, inspect provider limits, then resume when available. Notes retain pending source text; the app does not bypass quotas.
-- Model missing: enter a current available model ID; provider model lists can change.
-- Pause: wait for the last sentence's caption first if it must be retained.
-
-## Modified Qt libraries
-
-The app is an onedir PyInstaller bundle, with dynamically loaded Qt/PySide libraries. Source, version pins, build scripts and component notices accompany releases. You may rebuild against compatible modified libraries and ad-hoc sign the resulting app; no verification mechanism is added to block such replacements. See `licenses/` and `THIRD_PARTY_NOTICES.md`.
+See [Chinese guide](USER_GUIDE.zh-CN.md), [privacy](PRIVACY.md), and [README](../README.md) for API registration, installation and limitations.

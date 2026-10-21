@@ -1,6 +1,6 @@
 from pathlib import Path
 import os, sys, json, threading, subprocess
-from PySide6.QtCore import Qt, Signal, QObject, QTimer, QUrl
+from PySide6.QtCore import Qt, Signal, QObject, QTimer, QUrl, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -21,6 +21,9 @@ from PySide6.QtWidgets import (
     QSizeGrip,
     QScrollArea,
     QFrame,
+    QDialog,
+    QSplitter,
+    QProgressBar,
 )
 from core import ROOT, ASSET_ROOT, DATA_ROOT, Engine, DEFAULTS
 import sounddevice as sd
@@ -140,79 +143,138 @@ class WindowOptions:
             set_bits(window, objc.sel_registerName(b"setCollectionBehavior:"), bits)
 
 
-class SubtitleWindow(WindowOptions, QWidget):
+class CaptionHistory(QWidget):
+    """Upsert by segment id; follow only while the reader is near the bottom."""
+
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("课堂双语字幕")
-        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.resize(950, 250)
-        self.setMinimumSize(560, 180)
+        self.entries = {}
+        self.current = -1
+        self.font_size = 18
+        self.follow = True
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        frame = QWidget()
-        frame.setObjectName("subtitle")
-        layout.addWidget(frame)
-        body = QVBoxLayout(frame)
-        body.setContentsMargins(24, 16, 24, 16)
-        top = QHBoxLayout()
-        title = QLabel("LECTURE  /  EN → 中文")
-        title.setStyleSheet("color:#4282D6; font-size:11px; font-weight:700; letter-spacing:1px;")
-        top.addWidget(title)
-        top.addStretch()
-        hide = QPushButton("隐藏")
-        hide.clicked.connect(self.hide)
-        top.addWidget(hide)
-        body.addLayout(top)
-        self.source = QLabel("原文字幕")
-        self.target = QLabel("等待开始收音…")
-        for label in (self.source, self.target):
-            label.setWordWrap(True)
-            label.setTextFormat(Qt.PlainText)
-            body.addWidget(label)
-        body.addStretch()
-        row = QHBoxLayout()
-        row.addWidget(QLabel("拖动空白处移动"))
-        row.addStretch()
-        row.addWidget(QSizeGrip(self))
-        body.addLayout(row)
-        self.setStyleSheet(
-            LIGHT_STYLE
-            + "QWidget#subtitle {background:rgba(250,253,255,242); border:1px solid #C9DCF4; border-radius:20px;} QLabel {color:#7791AF; font-size:11px;} QPushButton {padding:6px 10px;}"
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        content = QWidget()
+        self.rows = QVBoxLayout(content)
+        self.rows.setContentsMargins(6, 6, 6, 6)
+        self.rows.setSpacing(12)
+        self.rows.addStretch()
+        self.scroll.setWidget(content)
+        layout.addWidget(self.scroll)
+        self.latest = QPushButton("↓ 回到最新")
+        self.latest.clicked.connect(self.resume_follow)
+        self.latest.hide()
+        layout.addWidget(self.latest, alignment=Qt.AlignRight)
+        bar = self.scroll.verticalScrollBar()
+        self.animation = QPropertyAnimation(bar, b"value", self)
+        self.animation.setDuration(280)
+        self.animation.setEasingCurve(QEasingCurve.OutCubic)
+        bar.rangeChanged.connect(lambda *_: self.scroll_latest())
+        bar.actionTriggered.connect(self.reader_scrolled)
+        bar.sliderPressed.connect(self.reader_scrolled)
+        self.scroll.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        from PySide6.QtCore import QEvent
+
+        if event.type() == QEvent.Wheel:
+            self.reader_scrolled()
+        return super().eventFilter(watched, event)
+
+    def reader_scrolled(self, *_):
+        self.animation.stop()
+        self.follow = False
+        self.latest.show()
+
+    def resume_follow(self):
+        self.follow = True
+        self.latest.hide()
+        self.scroll_latest()
+
+    def scroll_latest(self):
+        if not self.follow:
+            return
+        bar = self.scroll.verticalScrollBar()
+        self.animation.stop()
+        self.animation.setStartValue(bar.value())
+        self.animation.setEndValue(bar.maximum())
+        self.animation.start()
+
+    def style_entry(self, ident):
+        frame, source, target = self.entries[ident]
+        active = ident == self.current
+        frame.setStyleSheet(
+            "QFrame#captionCard {background:"
+            + ("#E8F2FF" if active else "#FFFFFF")
+            + ";border:1px solid "
+            + ("#78ADF3" if active else "#E0E9F4")
+            + ";border-radius:14px;}"
         )
-        self.add_window_options(body, pinned=True, opacity=100)
-        self.set_font(25)
-        rect = QApplication.primaryScreen().availableGeometry()
-        self.move(rect.center().x() - 475, rect.bottom() - 290)
+        source.setStyleSheet(f"font-size:{self.font_size - 2}px;color:#60738D;background:transparent;border:0;")
+        target.setStyleSheet(
+            f"font-size:{self.font_size}px;color:{'#165FC0' if active else '#344D6D'};"
+            f"font-weight:{600 if active else 400};background:transparent;border:0;"
+        )
 
-    def set_font(self, n):
-        self.source.setStyleSheet(f"color:#263C59; font-size:{n - 3}px;")
-        self.target.setStyleSheet(f"color:#1766D1; font-size:{n}px; font-weight:600;")
+    def set_font(self, size):
+        self.font_size = size
+        for ident in self.entries:
+            self.style_entry(ident)
 
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self.windowHandle().startSystemMove()
+    def append(self, ident, original, translated):
+        if ident < self.current:
+            return
+        previous = self.current
+        self.current = ident
+        if ident not in self.entries:
+            frame = QFrame()
+            frame.setObjectName("captionCard")
+            body = QVBoxLayout(frame)
+            body.setContentsMargins(16, 12, 16, 14)
+            source, target = QLabel(), QLabel()
+            for label in (source, target):
+                label.setWordWrap(True)
+                label.setTextFormat(Qt.PlainText)
+                label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                body.addWidget(label)
+            self.entries[ident] = (frame, source, target)
+            self.rows.insertWidget(self.rows.count() - 1, frame)
+        _, source, target = self.entries[ident]
+        source.setText(original)
+        target.setText(translated)
+        if previous in self.entries:
+            self.style_entry(previous)
+        self.style_entry(ident)
+        # Keep memory/layout bounded for long lectures; the full transcript stays on disk.
+        while len(self.entries) > 300:
+            oldest = next(iter(self.entries))
+            frame, _, _ = self.entries.pop(oldest)
+            self.rows.removeWidget(frame)
+            frame.deleteLater()
+        QTimer.singleShot(0, self.scroll_latest)
 
 
-class NotesWindow(WindowOptions, QWidget):
+class NotesPane(QWidget):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
-        self.setWindowTitle("Lecture Caption · 实时 Markdown 笔记")
-        self.resize(760, 760)
         body = QVBoxLayout(self)
-        self.add_window_options(body, pinned=True, opacity=100)
-        self.status = QLabel("收音后，每约45秒整理新增内容；原文即时保存。")
+        body.setContentsMargins(0, 0, 0, 0)
+        self.status = QLabel("每约45秒整理新增内容，原文即时保存。")
+        self.status.setWordWrap(True)
         body.addWidget(self.status)
         tabs = QTabWidget()
         self.preview = QTextBrowser()
         self.preview.setOpenExternalLinks(False)
-        self.preview.setStyleSheet("font-size:16px; padding:18px; background:white; color:#233956;")
+        self.preview.setStyleSheet("font-size:16px;padding:16px;")
         self.source = QPlainTextEdit()
         self.source.setReadOnly(True)
         tabs.addTab(self.preview, "阅读")
-        tabs.addTab(self.source, "Markdown 源码")
-        body.addWidget(tabs)
+        tabs.addTab(self.source, "Markdown")
+        body.addWidget(tabs, 1)
         row = QHBoxLayout()
         update = QPushButton("立即整理")
         update.clicked.connect(self.engine.force_notes.set)
@@ -221,7 +283,7 @@ class NotesWindow(WindowOptions, QWidget):
         folder.clicked.connect(self.open_folder)
         row.addWidget(folder)
         body.addLayout(row)
-        self.path = QLabel("笔记保存在本机应用数据目录，可点击下方按钮打开")
+        self.path = QLabel("笔记自动保存在本机")
         self.path.setWordWrap(True)
         body.addWidget(self.path)
 
@@ -241,8 +303,9 @@ class NotesWindow(WindowOptions, QWidget):
 class Controls(WindowOptions, QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Lecture Caption · 云端课堂翻译与笔记")
-        self.resize(660, 830)
+        self.setWindowTitle("Lecture Caption")
+        self.resize(1220, 800)
+        self.setMinimumSize(860, 560)
         config = {}
         if (DATA_ROOT / "config.json").exists():
             try:
@@ -251,57 +314,35 @@ class Controls(WindowOptions, QWidget):
                 pass
         self.sig = Signals()
         self.engine = Engine(self.sig, config)
-        self.overlay = SubtitleWindow()
-        self.notes = NotesWindow(self.engine)
+        self.notes = NotesPane(self.engine)
+        self.history = CaptionHistory()
         self.current = -1
-        self.sig.status.connect(lambda s: self.status.setText(s))
-        self.sig.caption.connect(self.caption)
-        self.sig.notes.connect(self.notes.update)
-        self.sig.note_status.connect(self.notes.status.setText)
-        self.sig.error.connect(self.error)
-        self.sig.capture_failed.connect(self.capture_failed)
-        self.sig.tested.connect(self.tested)
-        self.sig.credential_result.connect(self.credential_result)
         self.credentials = CredentialStore(ROOT, self.engine.config)
         self.credential_busy = False
-        self.sig.level.connect(lambda n: self.level.setText("音量  " + "▰" * min(20, n // 5)))
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        content = QWidget()
-        scroll.setWidget(content)
-        outer.addWidget(scroll)
-        body = QVBoxLayout(content)
-        body.setContentsMargins(24, 20, 24, 22)
+        self.setStyleSheet(LIGHT_STYLE)
+        body = QVBoxLayout(self)
+        body.setContentsMargins(22, 18, 22, 16)
         body.setSpacing(12)
-        self.add_window_options(body, pinned=False, opacity=100)
-        brand = QHBoxLayout()
-        brand_icon = QLabel()
-        brand_icon.setPixmap(
-            QPixmap(str(ASSET_ROOT / "AppIcon.png")).scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        header = QHBoxLayout()
+        icon = QLabel()
+        icon.setPixmap(
+            QPixmap(str(ASSET_ROOT / "AppIcon.png")).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         )
-        brand.addWidget(brand_icon)
+        header.addWidget(icon)
         title = QLabel("Lecture Caption")
-        title.setStyleSheet("font-size:27px; font-weight:700; color:#1B579E;")
-        brand.addWidget(title)
-        brand.addStretch()
-        body.addLayout(brand)
-        info = QLabel(
-            "听懂每一句，记住每个关键点。\n课堂与线上会议 · 双语字幕 · 实时笔记\n音频和文字通过你配置的 API 处理。"
-        )
-        info.setWordWrap(True)
-        body.addWidget(info)
-        form = QFormLayout()
-        form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
-        form.setHorizontalSpacing(16)
-        form.setVerticalSpacing(12)
-        self.key = QLineEdit(os.environ.get("GROQ_API_KEY", ""))
-        self.key.setEchoMode(QLineEdit.Password)
-        self.key.setPlaceholderText("启动时自动从钥匙串读取，或粘贴 gsk_…")
-        form.addRow("Groq API key", self.key)
+        title.setStyleSheet("font-size:24px;font-weight:700;color:#1B579E;")
+        header.addWidget(title)
+        header.addStretch()
+        settings = QPushButton("⚙ 设置")
+        settings.clicked.connect(self.show_settings)
+        header.addWidget(settings)
+        body.addLayout(header)
+        self.add_window_options(body, pinned=False, opacity=int(config.get("opacity", 100)))
+        self.pin_button.setChecked(bool(config.get("pinned", False)))
+        toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("输入"))
         self.input = QComboBox()
+        self.input.setMinimumWidth(240)
         self.input.addItem("电脑内部音频（会议 / 视频）", "system")
         try:
             default = sd.default.device[0]
@@ -312,91 +353,223 @@ class Controls(WindowOptions, QWidget):
                         self.input.setCurrentIndex(self.input.count() - 1)
         except Exception:
             pass
-        form.addRow("输入来源", self.input)
-        key_options = QHBoxLayout()
+        toolbar.addWidget(self.input, 1)
+        self.start = QPushButton("▶ 开始")
+        self.start.setObjectName("primary")
+        self.start.clicked.connect(self.toggle)
+        self.stop_button = QPushButton("■ 停止")
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(lambda: self.toggle() if self.engine.active else None)
+        toolbar.addWidget(self.start)
+        toolbar.addWidget(self.stop_button)
+        toolbar.addWidget(QLabel("音量"))
+        self.level = QProgressBar()
+        self.level.setRange(0, 100)
+        self.level.setTextVisible(False)
+        self.level.setFixedSize(110, 12)
+        toolbar.addWidget(self.level)
+        body.addLayout(toolbar)
+        self.mode_label = QLabel()
+        body.addWidget(self.mode_label)
+        splitter = QSplitter(Qt.Horizontal)
+        left, right = QWidget(), QWidget()
+        l, r = QVBoxLayout(left), QVBoxLayout(right)
+        for layout in (l, r):
+            layout.setContentsMargins(0, 0, 0, 0)
+        for layout, title in ((l, "课程笔记"), (r, "实时翻译  ·  EN → 中文")):
+            heading = QLabel(title)
+            heading.setStyleSheet("font-size:17px;font-weight:600;color:#225A9C;")
+            layout.addWidget(heading)
+        l.addWidget(self.notes, 1)
+        r.addWidget(self.history, 1)
+        splitter.addWidget(left)
+        splitter.addWidget(right)
+        splitter.setChildrenCollapsible(False)
+        splitter.setSizes([540, 620])
+        body.addWidget(splitter, 1)
+        self.status = QLabel("就绪。选择输入来源，然后点击开始。")
+        self.status.setWordWrap(True)
+        body.addWidget(self.status)
+        self.quota = QLabel()
+        self.quota.setWordWrap(True)
+        self.quota.setStyleSheet("color:#6C829D;font-size:11px;")
+        body.addWidget(self.quota)
+        self.build_settings(config)
+        self.sig.status.connect(self.status.setText)
+        self.sig.caption.connect(self.caption)
+        self.sig.notes.connect(self.notes.update)
+        self.sig.note_status.connect(self.notes.status.setText)
+        self.sig.error.connect(self.error)
+        self.sig.capture_failed.connect(self.capture_failed)
+        self.sig.tested.connect(self.tested)
+        self.sig.credential_result.connect(self.credential_result)
+        self.sig.level.connect(self.level.setValue)
+        self.quota_timer = QTimer(self)
+        self.quota_timer.timeout.connect(self.refresh_quota)
+        self.quota_timer.start(3000)
+        self.notes_on.toggled.connect(self.refresh_quota)
+        self.refresh_quota()
+        QShortcut(QKeySequence("Ctrl+Space"), self, activated=self.toggle)
+        QShortcut(QKeySequence("Meta+,"), self, activated=self.show_settings)
+        QShortcut(QKeySequence("Meta+Q"), self, activated=self.close)
+        QTimer.singleShot(0, lambda: self.credential_action("load"))
+
+    def build_settings(self, config):
+        self.settings = QDialog(self)
+        self.settings.setWindowTitle("Lecture Caption · 设置")
+        self.settings.resize(620, 680)
+        outer = QVBoxLayout(self.settings)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        content = QWidget()
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+        body = QVBoxLayout(content)
+        form = QFormLayout()
+        form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        form.setVerticalSpacing(14)
+        self.stt_backend = QComboBox()
+        self.stt_backend.addItem("Groq Whisper · 云端识别", "cloud")
+        self.stt_backend.addItem("Apple Speech · 本地识别（实验）", "apple")
+        self.stt_backend.setCurrentIndex(max(0, self.stt_backend.findData(config.get("stt_backend", "cloud"))))
+        form.addRow("语音识别", self.stt_backend)
+        self.translation_backend = QComboBox()
+        self.translation_backend.addItem("Groq · 云端翻译", "cloud")
+        self.translation_backend.addItem("Apple Translate · 本地翻译（macOS 15+）", "apple")
+        self.translation_backend.setCurrentIndex(
+            max(0, self.translation_backend.findData(config.get("translation_backend", "cloud")))
+        )
+        form.addRow("翻译方式", self.translation_backend)
+        prepare = QPushButton("准备 Apple 英中翻译语言包…")
+        prepare.clicked.connect(self.prepare_translation)
+        form.addRow(prepare)
+        hint = QLabel(
+            "Apple 模式不上传音频/翻译原文；自动笔记仍会发送原文到 Groq。\n语言资源须先下载；本地资源不可用时会提示，不会自动切到云端。"
+        )
+        hint.setWordWrap(True)
+        form.addRow(hint)
+        self.key = QLineEdit(os.environ.get("GROQ_API_KEY", ""))
+        self.key.setEchoMode(QLineEdit.Password)
+        self.key.setPlaceholderText("从钥匙串自动读取，或粘贴 gsk_…")
+        form.addRow("Groq API key", self.key)
         self.remember_key = QCheckBox("验证成功后保存到钥匙串")
         self.remember_key.setChecked(True)
-        key_options.addWidget(self.remember_key)
+        form.addRow(self.remember_key)
+        row = QHBoxLayout()
         self.save_key_button = QPushButton("保存 key")
         self.save_key_button.clicked.connect(lambda: self.credential_action("save"))
-        key_options.addWidget(self.save_key_button)
         self.delete_key_button = QPushButton("删除已保存 key")
         self.delete_key_button.clicked.connect(lambda: self.credential_action("delete"))
-        key_options.addWidget(self.delete_key_button)
-        form.addRow(key_options)
+        row.addWidget(self.save_key_button)
+        row.addWidget(self.delete_key_button)
+        form.addRow(row)
         self.key_status = QLabel("正在检查 macOS 钥匙串…")
         self.key_status.setWordWrap(True)
         form.addRow(self.key_status)
+        self.test = QPushButton("测试 API")
+        self.test.clicked.connect(self.test_key)
+        form.addRow(self.test)
         self.translation = QComboBox()
         self.translation.setEditable(True)
-        self.translation.addItems(["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
+        self.translation.addItems(["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
         self.translation.setCurrentText(self.engine.config["translation_model"])
-        form.addRow("翻译模型", self.translation)
+        form.addRow("Groq 翻译模型", self.translation)
         self.note_model = QComboBox()
         self.note_model.setEditable(True)
-        self.note_model.addItems(["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"])
+        self.note_model.addItems(["openai/gpt-oss-120b", "openai/gpt-oss-20b"])
         self.note_model.setCurrentText(self.engine.config["notes_model"])
         form.addRow("笔记模型", self.note_model)
-        self.glossary = QLineEdit()
-        self.glossary.setPlaceholderText("例如 CS154, Turing machine, polynomial time 或 eigenvalue")
-        form.addRow("课程术语（可选）", self.glossary)
+        self.glossary = QLineEdit(config.get("glossary", ""))
+        self.glossary.setPlaceholderText("课程名 / eigenvalue / Turing machine…")
+        form.addRow("课程术语", self.glossary)
         self.interval = QComboBox()
-        self.interval.addItem("8 秒：较省额度，默认", 8)
-        self.interval.addItem("5 秒：更快，额度消耗更高", 5)
-        self.interval.addItem("12 秒：较省额度", 12)
-        form.addRow("字幕分段上限", self.interval)
-        body.addLayout(form)
-        buttons = QHBoxLayout()
-        self.test = QPushButton("1 · 测试 API")
-        self.test.clicked.connect(self.test_key)
-        buttons.addWidget(self.test)
-        self.start = QPushButton("2 · 开始收音")
-        self.start.setObjectName("primary")
-        self.start.clicked.connect(self.toggle)
-        buttons.addWidget(self.start)
-        body.addLayout(buttons)
-        windows = QHBoxLayout()
-        subs = QPushButton("显示悬浮字幕")
-        subs.clicked.connect(lambda: self.overlay.show())
-        windows.addWidget(subs)
-        note = QPushButton("显示实时笔记")
-        note.clicked.connect(lambda: self.notes.show())
-        windows.addWidget(note)
-        body.addLayout(windows)
-        self.notes_on = QCheckBox("自动整理并保存 Markdown 笔记")
-        self.notes_on.setChecked(True)
-        body.addWidget(self.notes_on)
-        sliders = QFormLayout()
-        sliders.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        for label, value in (("5 秒 · 更快", 5), ("8 秒 · 默认", 8), ("12 秒 · 更省额度", 12)):
+            self.interval.addItem(label, value)
+        self.interval.setCurrentIndex(max(0, self.interval.findData(self.engine.config["chunk_seconds"])))
+        form.addRow("云端语音分段", self.interval)
+        self.notes_on = QCheckBox("自动整理并保存 Markdown 笔记（Groq）")
+        self.notes_on.setChecked(config.get("notes_enabled", True))
+        form.addRow(self.notes_on)
         sensitivity = QSlider(Qt.Horizontal)
         sensitivity.setRange(1, 20)
-        sensitivity.setValue(4)
-        sensitivity.setToolTip("左侧更灵敏，右侧过滤更多噪声")
+        sensitivity.setValue(int(config.get("threshold", 4)))
+        self.engine.threshold = sensitivity.value() / 1000
         sensitivity.valueChanged.connect(lambda n: setattr(self.engine, "threshold", n / 1000))
-        sliders.addRow("噪声门槛", sensitivity)
-        size = QSlider(Qt.Horizontal)
-        size.setRange(18, 36)
-        size.setValue(25)
-        size.valueChanged.connect(self.overlay.set_font)
-        sliders.addRow("字幕字号", size)
-        body.addLayout(sliders)
-        self.level = QLabel("音量  ·")
-        body.addWidget(self.level)
-        self.status = QLabel("就绪。先测试 key，再开始收音。录音不会保存；转写文字会保存在本机。")
-        self.status.setWordWrap(True)
-        body.addWidget(self.status)
-        help_button = QPushButton("申请免费 key / 使用说明")
+        form.addRow("噪声门槛", sensitivity)
+        self.size = QSlider(Qt.Horizontal)
+        self.size.setRange(14, 30)
+        self.size.setValue(int(config.get("font_size", 18)))
+        self.history.set_font(self.size.value())
+        self.size.valueChanged.connect(self.history.set_font)
+        form.addRow("翻译字号", self.size)
+        body.addLayout(form)
+        help_button = QPushButton("免费 key / 使用说明")
         help_button.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(ROOT / "docs" / "USER_GUIDE.zh-CN.md")))
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(ROOT / "docs/USER_GUIDE.zh-CN.md")))
         )
         body.addWidget(help_button)
-        body.addStretch()
-        self.setStyleSheet(LIGHT_STYLE)
-        self.notes.setStyleSheet(LIGHT_STYLE)
-        self.overlay.show()
-        QShortcut(QKeySequence("Ctrl+Space"), self, activated=self.toggle)
-        QShortcut(QKeySequence("Meta+Q"), self, activated=self.close)
-        QTimer.singleShot(0, lambda: self.credential_action("load"))
+        close = QPushButton("完成")
+        close.setObjectName("primary")
+        close.clicked.connect(self.settings.accept)
+        outer.addWidget(close)
+        self.settings.finished.connect(lambda _: self.save_preferences())
+        for combo in (self.stt_backend, self.translation_backend):
+            combo.currentIndexChanged.connect(self.refresh_quota)
+
+    def show_settings(self):
+        self.settings.show()
+        self.settings.raise_()
+        self.settings.activateWindow()
+
+    def save_preferences(self):
+        self.engine.config.update(
+            {
+                "stt_backend": self.stt_backend.currentData(),
+                "translation_backend": self.translation_backend.currentData(),
+                "translation_model": self.translation.currentText().strip(),
+                "notes_model": self.note_model.currentText().strip(),
+                "chunk_seconds": self.interval.currentData(),
+                "notes_enabled": self.notes_on.isChecked(),
+                "glossary": self.glossary.text().strip()[:500],
+                "threshold": round(self.engine.threshold * 1000),
+                "font_size": self.size.value(),
+                "pinned": self._pinned,
+                "opacity": self.opacity_slider.value(),
+            }
+        )
+        # Whitelist preferences: credentials are exclusively managed by Keychain.
+        data = {k: self.engine.config[k] for k in DEFAULTS}
+        for k in ("notes_enabled", "glossary", "threshold", "font_size", "pinned", "opacity"):
+            data[k] = self.engine.config[k]
+        temp = DATA_ROOT / "config.tmp"
+        temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        temp.chmod(0o600)
+        temp.replace(DATA_ROOT / "config.json")
+        self.refresh_quota()
+
+    def refresh_quota(self):
+        if not hasattr(self, "stt_backend"):
+            return
+        local_stt = self.stt_backend.currentData() == "apple"
+        local_tr = self.translation_backend.currentData() == "apple"
+        self.mode_label.setText(
+            f"识别：{'Apple 本地' if local_stt else 'Groq Whisper'}  ·  翻译：{'Apple 本地' if local_tr else 'Groq'}  ·  笔记：{'Groq' if self.notes_on.isChecked() else '关闭'}"
+        )
+        st = self.engine.usage.stats()
+        self.quota.setText(
+            f"本机近24小时语音 API 用量：{st['req_day']} 次 / {st['sec_day'] / 60:.1f} 分钟 · 本分钟 {st['rpm']} 次。非账号剩余额度；不含其他设备及文字模型。"
+            + (" Apple 识别不消耗语音 API。" if local_stt else "")
+        )
+
+    def prepare_translation(self):
+        from local_services import prepare_translation
+
+        try:
+            prepare_translation()
+            self.status.setText("已打开 Apple 语言包准备窗口，完成后可关闭该窗口。")
+        except RuntimeError as e:
+            self.error(str(e))
 
     def credential_action(self, operation):
         if self.credential_busy:
@@ -452,6 +625,7 @@ class Controls(WindowOptions, QWidget):
             self.key_status.setText("已从钥匙串删除；输入框已清空，服务器端 key 仍有效。")
 
     def config_from_ui(self):
+        self.save_preferences()
         self.engine.config["translation_model"] = self.translation.currentText().strip()
         self.engine.config["notes_model"] = self.note_model.currentText().strip()
         self.engine.config["chunk_seconds"] = self.interval.currentData()
@@ -468,7 +642,13 @@ class Controls(WindowOptions, QWidget):
             return
         self.test.setEnabled(False)
         self.status.setText("正在测试 API 连接…")
-        models = [self.engine.config["stt_model"], self.translation.currentText(), self.note_model.currentText()]
+        models = []
+        if self.stt_backend.currentData() == "cloud":
+            models.append(self.engine.config["stt_model"])
+        if self.translation_backend.currentData() == "cloud":
+            models.append(self.translation.currentText())
+        if self.notes_on.isChecked():
+            models.append(self.note_model.currentText())
 
         def run():
             try:
@@ -505,18 +685,21 @@ class Controls(WindowOptions, QWidget):
             self.engine.stop()
             self.status.setText("已暂停，输入已释放；已识别原文保存，正在整理最后一批笔记。")
         else:
-            if not self.key.text().strip():
-                self.error("先填写 API key，再开始。")
+            if (
+                self.stt_backend.currentData() == "cloud"
+                or self.translation_backend.currentData() == "cloud"
+                or self.notes_on.isChecked()
+            ) and not self.key.text().strip():
+                self.show_settings()
+                self.error("当前模式需要 Groq API key。纯本地字幕请选择两项 Apple 并关闭自动笔记。")
                 return
             self.config_from_ui()
-            self.current = -1
             self.engine.start(self.input.currentData())
-            if self.engine.active:
-                self.overlay.show()
-                if self.notes_on.isChecked():
-                    self.notes.show()
         active = self.engine.active
-        self.start.setText("暂停收音" if active else "开始收音")
+        self.start.setEnabled(not active)
+        self.stop_button.setEnabled(active)
+        if not active:
+            self.level.setValue(0)
         for w in (
             self.input,
             self.key,
@@ -529,6 +712,8 @@ class Controls(WindowOptions, QWidget):
             self.save_key_button,
             self.delete_key_button,
             self.remember_key,
+            self.stt_backend,
+            self.translation_backend,
         ):
             w.setEnabled(not active)
 
@@ -536,8 +721,7 @@ class Controls(WindowOptions, QWidget):
         if not self.engine.active or ident < self.current:
             return
         self.current = ident
-        self.overlay.source.setText(text)
-        self.overlay.target.setText(translation)
+        self.history.append(ident, text, translation)
 
     def error(self, message):
         QMessageBox.warning(self, "Lecture Caption", message)
@@ -553,8 +737,8 @@ class Controls(WindowOptions, QWidget):
         self.engine.shutdown = True
         self.engine.force_notes.set()
         self.engine.save_notes()
-        self.overlay.close()
-        self.notes.close()
+        self.save_preferences()
+        self.settings.close()
         event.accept()
         QApplication.quit()
 
@@ -575,16 +759,21 @@ if __name__ == "__main__":
     if "--preview" in sys.argv:
 
         def capture_preview():
-            main.overlay.source.setText("A binary search tree maintains the ordering invariant at every node.")
-            main.overlay.target.setText("二叉搜索树在每个节点都保持有序性不变量（ordering invariant）。")
+            main.history.append(
+                1,
+                "A binary search tree maintains an ordering invariant.",
+                "二叉搜索树保持有序性不变量（ordering invariant）。",
+            )
+            main.history.append(
+                2,
+                "The running time depends on the height of the tree.",
+                "运行时间取决于树高。",
+            )
             main.notes.update(
-                "# 二叉搜索树\n\n## 核心定义\n\n- 左子树的键小于当前节点，右子树的键大于当前节点。\n- 具体是否允许重复键：【待核对】。\n\n## 时间复杂度\n\n- 查找代价取决于树高 $h$。\n\n> 界面示例，非真实课堂转写。",
+                "# 二叉搜索树\n\n## 核心定义\n\n- 左子树的键小于当前节点，右子树的键大于当前节点。\n\n## 时间复杂度\n\n- 查找代价取决于树高 $h$。\n\n> 界面示例，非真实课堂转写。",
                 "界面示例",
             )
-            main.notes.show()
-            main.grab().save(str(DATA_ROOT / "logs" / "controls-preview.png"))
-            main.overlay.grab().save(str(DATA_ROOT / "logs" / "subtitle-preview.png"))
-            main.notes.grab().save(str(DATA_ROOT / "logs" / "notes-preview.png"))
+            QTimer.singleShot(350, lambda: main.grab().save(str(DATA_ROOT / "logs/workspace-preview.png")))
 
         QTimer.singleShot(1000, capture_preview)
         QTimer.singleShot(2200, app.quit)

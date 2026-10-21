@@ -4,18 +4,20 @@
 
 English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) · [Privacy](docs/PRIVACY.md)
 
-A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese floating captions, and collect structured Markdown notes while you listen. Your Mac handles capture and display; your configured API handles inference. No local AI models are loaded.
+A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Early release, v0.3.0. Apple Silicon, macOS 14+. The original pipeline was exercised on an M5 Mac; full-length lectures, different microphones and conferencing apps still need broader testing. The app is ad-hoc signed, not Apple notarized.
+> Early release, v0.4.0. Apple Silicon, macOS 14+. The original pipeline was exercised on an M5 Mac; full-length lectures, different microphones and conferencing apps still need broader testing. The app is ad-hoc signed, not Apple notarized.
 
-![Blue-and-white control panel](docs/controls-blue.png)
+![Blue-and-white control panel](docs/workspace-blue.png)
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Features
 
 - **Classroom and online audio:** microphone input, or native ScreenCaptureKit system audio without a virtual audio driver. One source at a time.
-- **Bilingual floating captions:** English above Chinese, with independent Pin and 30–100% opacity controls.
+- **One workspace:** notes left, caption history right; current segment highlighting, animated scroll, manual history browsing and return-to-latest. Settings open only when requested.
+- **Main-window controls:** Start/Stop, input source, live audio meter, Pin, 30–100% opacity and clearly labeled local speech-API accounting.
+- **Apple local captions:** optional on-device English recognition and English-to-Chinese translation (macOS 15+, installed language resources). With automatic notes off, no API key is needed. No silent cloud fallback.
 - **Live study notes:** incremental Chinese Markdown, normally every 45 seconds, emphasizing definitions, assumptions, arguments, algorithms and complexity.
 - **CS/math terminology:** supply course terms; uncertain formula details are explicitly requested to be marked for checking.
 - **macOS Keychain:** save your API key once; reload it at startup. No key in ordinary config or command arguments.
@@ -28,14 +30,18 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 1. Download the **macOS arm64 ZIP** from this repository's **Releases** page.
 2. Extract it and drag **Lecture Caption.app** to **Applications**.
 3. Open the app. If macOS blocks this unnotarized build, use the explicit Open Anyway flow in **System Settings → Privacy & Security**, after checking the release checksum and source.
-4. Get your own [Groq API key](https://console.groq.com/keys), paste it into the app, and select **测试 API**. Successful validation saves it to Keychain by default.
+4. Get your own [Groq API key](https://console.groq.com/keys), open Settings and paste it, and select **测试 API**. Successful validation saves it to Keychain by default.
 5. Select your microphone or system audio, then start capture. Grant the relevant macOS permission when prompted.
 
 **Free application, quota-limited API.** Groq has a free tier; availability, model IDs and account quotas can change. This app cannot verify your billing plan and does not guarantee zero charges on a paid account. Check [your limits](https://console.groq.com/settings/limits) and [Groq documentation](https://console.groq.com/docs/rate-limits). No automatic fallback to a different paid provider is implemented.
 
+## Apple local setup
+
+Open Settings, choose Apple Speech and Apple Translate, and click **准备 Apple 英中翻译语言包**. Finish the native download dialog. Local speech requires English dictation resources and Speech Recognition permission; enable/download English dictation in macOS Keyboard settings if needed. Unsupported/missing resources produce an explicit error. Turn off automatic notes to use captions without Groq. Local recognition is experimental and uses general English dictation; the course glossary currently applies to cloud recognition only. Local services still use system ML models and consume power.
+
 ## What to expect
 
-Captions are **chunked near-real-time**, not word-by-word simultaneous interpretation. Default maximum chunk length is 8 seconds, plus network and inference latency. Translation calls and speech calls are processed in order. Notes are updated separately.
+Captions are **chunked near-real-time**, not word-by-word simultaneous interpretation. Cloud default maximum chunk length is 8 seconds; Apple recognition uses roughly 2–3 second chunks, plus processing latency. Translation calls and speech calls are processed in order. Notes are updated separately.
 
 The app hears audio only: it cannot infer unwritten/unspoken board content. ASR and notes can be wrong, especially for notation, subscripts, proofs and code. The built-in Markdown view preserves LaTeX source but does not typeset math; open the `.md` in a math-aware editor if needed.
 
@@ -54,11 +60,11 @@ Local files live in:
     └── transcript.jsonl           # original and translation update events
 ```
 
-Audio chunks go to the selected speech API; transcripts go to the selected translation/notes API. Keychain stores credentials on this Mac, without enabling iCloud synchronization. There is no app-owned backend, analytics or automatic audio upload before you start capture. See [Privacy](docs/PRIVACY.md).
+In cloud mode, audio chunks go to the selected speech API and transcripts go to the selected translation/notes API. Apple speech/translation stay on-device; enabling structured notes still sends recognized text to your notes API. Keychain stores credentials on this Mac, without enabling iCloud synchronization. There is no app-owned backend, analytics or automatic audio upload before you start capture. See [Privacy](docs/PRIVACY.md).
 
 ## Develop and build
 
-Requires an Apple Silicon Mac, Python 3.13, Xcode Command Line Tools, and network access for Python dependencies.
+Requires an Apple Silicon Mac, Python 3.13, Xcode Command Line Tools, and network access for Python dependencies. The SDK must include Translation.framework (Xcode 16+).
 
 ```bash
 python3.13 -m venv .venv
@@ -74,7 +80,7 @@ Build the independent app and verify its signature:
 python scripts/build_app.py
 ```
 
-The result is `dist/Lecture Caption.app`, containing Python, Qt and runtime dependencies. No AI model weights or API keys are bundled. Runtime dependencies are pinned in `requirements-lock.txt`. The native helpers target macOS 14.0 / arm64. Source builds are reproducible as a documented process; binary byte-for-byte identity is not claimed.
+The result is `dist/Lecture Caption.app`, containing Python, Qt and runtime dependencies. No model weights or API keys are bundled. Apple language resources are managed by macOS. Runtime dependencies are pinned in `requirements-lock.txt`. The native helpers target macOS 14.0 / arm64. Source builds are reproducible as a documented process; binary byte-for-byte identity is not claimed.
 
 Checks:
 

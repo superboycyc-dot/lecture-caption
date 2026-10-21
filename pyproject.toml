@@ -1,7 +1,7 @@
 [project]
 name = "lecture-caption"
-version = "0.3.0"
-description = "macOS bilingual lecture captions and live Markdown notes using your own cloud API key"
+version = "0.4.0"
+description = "macOS bilingual lecture captions and live Markdown notes with Apple local or cloud processing"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 license = "MIT"
