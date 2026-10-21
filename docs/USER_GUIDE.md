@@ -1,6 +1,6 @@
 # User guide
 
-The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Pin and opacity apply to the whole window.
+The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Opacity applies to the whole window and is configured in Settings; the pin control has been removed.
 
 Click Settings to configure your Keychain credential, backends, models, glossary, note generation, chunk length and font size. The settings dialog is hidden by default. Preferences persist across restarts.
 
@@ -15,3 +15,5 @@ Stop releases capture and discards incomplete/queued audio, marking gaps. Wait f
 See [Chinese guide](USER_GUIDE.zh-CN.md), [privacy](PRIVACY.md), and [README](../README.md) for API registration, installation and limitations.
 
 When Groq returns rate-limit headers, the main window also displays the latest server request/token snapshot with its model and timestamp. This is not a billing balance or a live combined quota for all models. See [Groq rate-limit headers](https://console.groq.com/docs/rate-limits).
+
+The compact toolbar includes input, recognition/translation backends, English/Chinese/bilingual presentation, Start/Pause, Stop and a settings icon. Audio level and usage live at the bottom. Note hints disappear on first content; refresh/folder icons remain inside the pane. Right-click notes to switch Markdown source/read view. Caption language selection changes presentation only, retaining translations in the transcript.

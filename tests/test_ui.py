@@ -39,7 +39,7 @@ class UiTests(unittest.TestCase):
             self.app.processEvents()
             time.sleep(0.005)
 
-    def test_pin_opacity_and_credential_lifecycle(self):
+    def test_compact_workspace_opacity_and_credential_lifecycle(self):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
             win.show()
@@ -49,14 +49,23 @@ class UiTests(unittest.TestCase):
             self.assertFalse(win.settings.isVisible())
             self.assertFalse(win.notes.isWindow())
             self.assertFalse(win.history.isWindow())
-            win.pin_button.setChecked(True)
-            self.assertTrue(win._pinned)
+            self.assertFalse(hasattr(win, "pin_button"))
+            self.assertEqual(win.stt_backend.window(), win)
+            self.assertEqual(win.translation_backend.window(), win)
+            self.assertFalse(win.notes.has_content)
+            self.assertEqual(win.notes.stack.currentIndex(), 0)
             win.opacity_slider.setValue(65)
             self.assertAlmostEqual(win.windowOpacity(), 0.65, places=2)
             win.show_settings()
             self.assertTrue(win.settings.isVisible())
             win.settings.accept()
             self.assertFalse(win.settings.isVisible())
+            win.notes.update("# 课堂笔记", "empty-session")
+            self.assertFalse(win.notes.has_content)
+            win.engine.sections.append("## Definition\n- Invariant")
+            win.notes.update("# 课堂笔记\n\n## Definition\n- Invariant", "synthetic.md")
+            self.assertTrue(win.notes.has_content)
+            self.assertTrue(win.notes.status.isHidden() or not win.notes.status.isVisible())
             win.key.setText("synthetic-replacement")
             win.tested(True, "success")
             self.wait()
@@ -83,6 +92,15 @@ class UiTests(unittest.TestCase):
         self.assertEqual(panel.current, 2)
         self.assertIn("#E8F2FF", panel.entries[2][0].styleSheet())
         self.assertNotIn("#E8F2FF", panel.entries[1][0].styleSheet())
+        panel.set_display_mode("english")
+        self.assertFalse(panel.entries[1][1].isHidden())
+        self.assertTrue(panel.entries[1][2].isHidden())
+        panel.set_display_mode("chinese")
+        self.assertTrue(panel.entries[1][1].isHidden())
+        self.assertFalse(panel.entries[1][2].isHidden())
+        panel.set_display_mode("bilingual")
+        self.assertFalse(panel.entries[1][1].isHidden())
+        self.assertFalse(panel.entries[1][2].isHidden())
         panel.reader_scrolled()
         for i in range(3, 25):
             panel.append(i, "a long sentence " * 8, "翻译内容" * 10)
@@ -95,6 +113,38 @@ class UiTests(unittest.TestCase):
         panel.append(1, "stale", "stale")
         self.assertEqual(panel.entries[1][1].text(), "first")
         panel.close()
+
+    def test_pause_resume_and_stop_buttons(self):
+        with patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait()
+
+            def start(_):
+                win.engine.active = True
+
+            def stop():
+                win.engine.active = False
+
+            with (
+                patch.object(win.engine, "start", side_effect=start),
+                patch.object(win.engine, "stop", side_effect=stop),
+            ):
+                win.start.click()
+                self.assertTrue(win.engine.active)
+                self.assertIn("暂停", win.start.text())
+                self.assertFalse(win.input.isEnabled())
+                win.start.click()
+                self.assertFalse(win.engine.active)
+                self.assertTrue(win.paused)
+                self.assertIn("继续", win.start.text())
+                win.start.click()
+                self.assertTrue(win.engine.active)
+                win.stop_button.click()
+                self.assertFalse(win.engine.active)
+                self.assertFalse(win.paused)
+                self.assertIn("开始", win.start.text())
+                self.assertTrue(win.input.isEnabled())
+            win.close()
 
     def test_pure_local_start_does_not_require_api_key(self):
         with patch.object(caption, "CredentialStore", FakeStore):

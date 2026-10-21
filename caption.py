@@ -24,6 +24,10 @@ from PySide6.QtWidgets import (
     QDialog,
     QSplitter,
     QProgressBar,
+    QToolButton,
+    QStackedWidget,
+    QSizePolicy,
+    QMenu,
 )
 from core import ROOT, ASSET_ROOT, DATA_ROOT, Engine, DEFAULTS
 import sounddevice as sd
@@ -71,79 +75,6 @@ class Signals(QObject):
     credential_result = Signal(str, bool, str)
 
 
-class WindowOptions:
-    """Shared presentation controls; changing them never restarts capture."""
-
-    def add_window_options(self, layout, pinned=True, opacity=100):
-        self._pinned = pinned
-        self.setAttribute(Qt.WA_MacAlwaysShowToolWindow, True)
-        self.setWindowFlag(Qt.WindowStaysOnTopHint, pinned)
-        row = QHBoxLayout()
-        self.pin_button = QPushButton("Pin · 已置顶" if pinned else "Pin · 未置顶")
-        self.pin_button.setCheckable(True)
-        self.pin_button.setChecked(pinned)
-        self.pin_button.setToolTip("保持在其他应用窗口前方；再次点击取消置顶")
-        self.pin_button.toggled.connect(self.set_pinned)
-        row.addWidget(self.pin_button)
-        row.addStretch()
-        row.addWidget(QLabel("不透明度"))
-        self.opacity_slider = QSlider(Qt.Horizontal)
-        self.opacity_slider.setRange(30, 100)
-        self.opacity_slider.setValue(opacity)
-        self.opacity_slider.setMaximumWidth(140)
-        self.opacity_slider.setToolTip("向左更透明；向右更清晰。文字和背景一起变化。")
-        self.opacity_label = QLabel(f"{opacity}%")
-        self.opacity_label.setMinimumWidth(38)
-        self.opacity_slider.valueChanged.connect(self.set_opacity)
-        row.addWidget(self.opacity_slider)
-        row.addWidget(self.opacity_label)
-        layout.addLayout(row)
-        self.setWindowOpacity(opacity / 100)
-
-    def set_opacity(self, value):
-        self.setWindowOpacity(value / 100)
-        self.opacity_label.setText(f"{value}%")
-
-    def set_pinned(self, enabled):
-        self._pinned = enabled
-        visible = self.isVisible()
-        geometry = self.geometry()
-        self.setWindowFlag(Qt.WindowStaysOnTopHint, enabled)
-        self.pin_button.setText("Pin · 已置顶" if enabled else "Pin · 未置顶")
-        if visible:
-            self.show()
-            self.setGeometry(geometry)
-            self.apply_mac_pin()
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        QTimer.singleShot(0, self.apply_mac_pin)
-
-    def apply_mac_pin(self):
-        if sys.platform != "darwin" or QApplication.platformName() in ("offscreen", "minimal") or not self.isVisible():
-            return
-        # Qt's native handle is an NSView. Set its NSWindow level explicitly:
-        # Qt.Tool alone can disappear when another app becomes active.
-        import ctypes
-
-        objc = ctypes.CDLL("/usr/lib/libobjc.A.dylib")
-        objc.sel_registerName.argtypes = [ctypes.c_char_p]
-        objc.sel_registerName.restype = ctypes.c_void_p
-        address = ctypes.cast(objc.objc_msgSend, ctypes.c_void_p).value
-        get = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(address)
-        set_long = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_long)(address)
-        get_bits = ctypes.CFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p, ctypes.c_void_p)(address)
-        set_bits = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ulong)(address)
-        window = get(int(self.winId()), objc.sel_registerName(b"window"))
-        if window:
-            set_long(window, objc.sel_registerName(b"setLevel:"), 3 if self._pinned else 0)
-            selector = objc.sel_registerName(b"collectionBehavior")
-            bits = get_bits(window, selector)
-            flags = 1 | (1 << 8)  # canJoinAllSpaces, fullScreenAuxiliary
-            bits = ((bits & ~(2 | 128 | 512)) | flags) if self._pinned else (bits & ~flags)
-            set_bits(window, objc.sel_registerName(b"setCollectionBehavior:"), bits)
-
-
 class CaptionHistory(QWidget):
     """Upsert by segment id; follow only while the reader is near the bottom."""
 
@@ -152,6 +83,7 @@ class CaptionHistory(QWidget):
         self.entries = {}
         self.current = -1
         self.font_size = 18
+        self.display_mode = "bilingual"
         self.follow = True
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -160,10 +92,11 @@ class CaptionHistory(QWidget):
         self.scroll.setFrameShape(QFrame.NoFrame)
         content = QWidget()
         self.rows = QVBoxLayout(content)
-        self.rows.setContentsMargins(6, 6, 6, 6)
+        self.rows.setContentsMargins(10, 10, 10, 10)
         self.rows.setSpacing(12)
         self.rows.addStretch()
         self.scroll.setWidget(content)
+        self.scroll.setStyleSheet("QScrollArea {background:#FFFFFF;border:1px solid #D9E4F2;border-radius:12px;}")
         layout.addWidget(self.scroll)
         self.latest = QPushButton("↓ 回到最新")
         self.latest.clicked.connect(self.resume_follow)
@@ -214,11 +147,19 @@ class CaptionHistory(QWidget):
             + ("#78ADF3" if active else "#E0E9F4")
             + ";border-radius:14px;}"
         )
+        source.setVisible(self.display_mode != "chinese")
+        target.setVisible(self.display_mode != "english")
         source.setStyleSheet(f"font-size:{self.font_size - 2}px;color:#60738D;background:transparent;border:0;")
         target.setStyleSheet(
             f"font-size:{self.font_size}px;color:{'#165FC0' if active else '#344D6D'};"
             f"font-weight:{600 if active else 400};background:transparent;border:0;"
         )
+
+    def set_display_mode(self, mode):
+        self.display_mode = mode
+        for ident in self.entries:
+            self.style_entry(ident)
+        QTimer.singleShot(0, self.scroll_latest)
 
     def set_font(self, size):
         self.font_size = size
@@ -258,50 +199,99 @@ class CaptionHistory(QWidget):
         QTimer.singleShot(0, self.scroll_latest)
 
 
+def icon_button(name, tooltip, callback):
+    button = QToolButton()
+    button.setIcon(QIcon(str(ASSET_ROOT / "icons" / (name + ".svg"))))
+    button.setToolTip(tooltip)
+    button.setAccessibleName(tooltip)
+    button.setFixedSize(30, 30)
+    button.setStyleSheet(
+        "QToolButton {background:transparent;border:0;border-radius:7px;padding:5px;} QToolButton:hover {background:#E4EFFF;}"
+    )
+    button.clicked.connect(callback)
+    return button
+
+
 class NotesPane(QWidget):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
+        self.has_content = False
+        self.setObjectName("notesPane")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet("QWidget#notesPane {background:white;border:1px solid #D9E4F2;border-radius:12px;}")
         body = QVBoxLayout(self)
-        body.setContentsMargins(0, 0, 0, 0)
-        self.status = QLabel("每约45秒整理新增内容，原文即时保存。")
+        body.setContentsMargins(10, 6, 10, 8)
+        body.setSpacing(0)
+        row = QHBoxLayout()
+        row.addStretch()
+        self.update_button = icon_button("refresh", "立即整理笔记", self.engine.force_notes.set)
+        self.folder_button = icon_button("folder", "打开笔记文件夹", self.open_folder)
+        row.addWidget(self.update_button)
+        row.addWidget(self.folder_button)
+        body.addLayout(row)
+        self.stack = QStackedWidget()
+        placeholder = QWidget()
+        empty = QVBoxLayout(placeholder)
+        empty.setContentsMargins(18, 10, 18, 10)
+        title = QLabel("笔记整理")
+        title.setStyleSheet("font-size:23px;font-weight:600;color:#346DAF;")
+        empty.addWidget(title)
+        self.status = QLabel("每约45秒提炼定义、逻辑与推导。\n开始收音后，笔记会自动出现在这里；原文即时保存。")
         self.status.setWordWrap(True)
-        body.addWidget(self.status)
-        tabs = QTabWidget()
+        self.status.setStyleSheet("color:#8194AD;font-size:14px;")
+        empty.addWidget(self.status)
+        empty.addStretch()
+        self.stack.addWidget(placeholder)
         self.preview = QTextBrowser()
         self.preview.setOpenExternalLinks(False)
-        self.preview.setStyleSheet("font-size:16px;padding:16px;")
+        self.preview.setStyleSheet("font-size:16px;padding:12px;background:white;border:0;")
+        self.stack.addWidget(self.preview)
         self.source = QPlainTextEdit()
         self.source.setReadOnly(True)
-        tabs.addTab(self.preview, "阅读")
-        tabs.addTab(self.source, "Markdown")
-        body.addWidget(tabs, 1)
-        row = QHBoxLayout()
-        update = QPushButton("立即整理")
-        update.clicked.connect(self.engine.force_notes.set)
-        row.addWidget(update)
-        folder = QPushButton("打开笔记文件夹")
-        folder.clicked.connect(self.open_folder)
-        row.addWidget(folder)
-        body.addLayout(row)
-        self.path = QLabel("笔记自动保存在本机")
-        self.path.setWordWrap(True)
-        body.addWidget(self.path)
+        self.source.setStyleSheet("background:white;border:0;")
+        self.stack.addWidget(self.source)
+        self.preview.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.source.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.preview.customContextMenuRequested.connect(lambda pos: self.show_menu(self.preview, pos))
+        self.source.customContextMenuRequested.connect(lambda pos: self.show_menu(self.source, pos))
+        body.addWidget(self.stack, 1)
+
+    def show_menu(self, editor, pos):
+        menu = editor.createStandardContextMenu()
+        menu.addSeparator()
+        action = menu.addAction("切换 Markdown 源码 / 阅读")
+        action.triggered.connect(
+            lambda: self.stack.setCurrentWidget(
+                self.source if self.stack.currentWidget() is self.preview else self.preview
+            )
+        )
+        menu.exec(editor.mapToGlobal(pos))
+
+    def note_status(self, message):
+        self.update_button.setToolTip("立即整理笔记 · " + message)
+        if not self.has_content:
+            self.status.setText(message)
 
     def open_folder(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.engine.session_dir or DATA_ROOT / "sessions")))
 
     def update(self, document, path):
+        # Ignore the empty session header; the in-frame hint disappears with first content.
+        nonempty = bool(self.engine.sections or self.engine.pending or self.engine.inflight) or "界面示例" in path
         bar = self.preview.verticalScrollBar()
         follow = bar.maximum() - bar.value() < 50
         old = bar.value()
         self.preview.setMarkdown(document)
         self.source.setPlainText(document)
-        self.path.setText(path)
+        self.folder_button.setToolTip("打开笔记文件夹 · " + path)
+        if nonempty and not self.has_content:
+            self.has_content = True
+            self.stack.setCurrentWidget(self.preview)
         bar.setValue(bar.maximum() if follow else old)
 
 
-class Controls(WindowOptions, QWidget):
+class Controls(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Lecture Caption")
@@ -322,29 +312,22 @@ class Controls(WindowOptions, QWidget):
         self.credential_busy = False
         self.setStyleSheet(LIGHT_STYLE)
         body = QVBoxLayout(self)
-        body.setContentsMargins(22, 18, 22, 16)
-        body.setSpacing(12)
+        body.setContentsMargins(12, 10, 12, 8)
+        body.setSpacing(8)
+        self.paused = False
         header = QHBoxLayout()
+        header.setSpacing(7)
         icon = QLabel()
+        icon.setToolTip("Lecture Caption")
         icon.setPixmap(
-            QPixmap(str(ASSET_ROOT / "AppIcon.png")).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            QPixmap(str(ASSET_ROOT / "AppIcon.png")).scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         )
         header.addWidget(icon)
-        title = QLabel("Lecture Caption")
-        title.setStyleSheet("font-size:24px;font-weight:700;color:#1B579E;")
-        header.addWidget(title)
-        header.addStretch()
-        settings = QPushButton("⚙ 设置")
-        settings.clicked.connect(self.show_settings)
-        header.addWidget(settings)
-        body.addLayout(header)
-        self.add_window_options(body, pinned=False, opacity=int(config.get("opacity", 100)))
-        self.pin_button.setChecked(bool(config.get("pinned", False)))
-        toolbar = QHBoxLayout()
-        toolbar.addWidget(QLabel("输入"))
         self.input = QComboBox()
-        self.input.setMinimumWidth(240)
-        self.input.addItem("电脑内部音频（会议 / 视频）", "system")
+        self.input.setToolTip("音源：选择麦克风或电脑内部音频")
+        self.input.setMinimumWidth(160)
+        self.input.setMaximumWidth(260)
+        self.input.addItem("电脑音频", "system")
         try:
             default = sd.default.device[0]
             for i, device in enumerate(sd.query_devices()):
@@ -354,60 +337,81 @@ class Controls(WindowOptions, QWidget):
                         self.input.setCurrentIndex(self.input.count() - 1)
         except Exception:
             pass
-        toolbar.addWidget(self.input, 1)
+        header.addWidget(self.input, 2)
+        self.stt_backend = QComboBox()
+        self.stt_backend.addItem("识别 · Groq", "cloud")
+        self.stt_backend.addItem("识别 · 本地", "apple")
+        self.stt_backend.setToolTip("语音识别：Groq Whisper / Apple 本地英文识别（实验）")
+        self.stt_backend.setCurrentIndex(max(0, self.stt_backend.findData(config.get("stt_backend", "cloud"))))
+        header.addWidget(self.stt_backend, 1)
+        self.translation_backend = QComboBox()
+        self.translation_backend.addItem("翻译 · Groq", "cloud")
+        self.translation_backend.addItem("翻译 · 本地", "apple")
+        self.translation_backend.setToolTip("翻译：Groq / Apple 本地英中翻译（macOS 15+）")
+        self.translation_backend.setCurrentIndex(
+            max(0, self.translation_backend.findData(config.get("translation_backend", "cloud")))
+        )
+        header.addWidget(self.translation_backend, 1)
+        self.display = QComboBox()
+        self.display.addItem("双语对照", "bilingual")
+        self.display.addItem("纯英文", "english")
+        self.display.addItem("纯中文", "chinese")
+        self.display.setToolTip("字幕显示方式；历史记录也会同步切换")
+        self.display.setCurrentIndex(max(0, self.display.findData(config.get("display_mode", "bilingual"))))
+        self.history.set_display_mode(self.display.currentData())
+        self.display.currentIndexChanged.connect(lambda _: self.history.set_display_mode(self.display.currentData()))
+        header.addWidget(self.display, 1)
         self.start = QPushButton("▶ 开始")
         self.start.setObjectName("primary")
+        self.start.setMinimumWidth(76)
         self.start.clicked.connect(self.toggle)
         self.stop_button = QPushButton("■ 停止")
+        self.stop_button.setMinimumWidth(76)
         self.stop_button.setEnabled(False)
-        self.stop_button.clicked.connect(lambda: self.toggle() if self.engine.active else None)
-        toolbar.addWidget(self.start)
-        toolbar.addWidget(self.stop_button)
-        toolbar.addWidget(QLabel("音量"))
-        self.level = QProgressBar()
-        self.level.setRange(0, 100)
-        self.level.setTextVisible(False)
-        self.level.setFixedSize(110, 12)
-        toolbar.addWidget(self.level)
-        body.addLayout(toolbar)
-        self.mode_label = QLabel()
-        body.addWidget(self.mode_label)
+        self.stop_button.clicked.connect(self.stop_capture)
+        header.addWidget(self.start)
+        header.addWidget(self.stop_button)
+        self.settings_button = icon_button("settings", "设置", self.show_settings)
+        header.addWidget(self.settings_button)
+        body.addLayout(header)
         splitter = QSplitter(Qt.Horizontal)
-        left, right = QWidget(), QWidget()
-        l, r = QVBoxLayout(left), QVBoxLayout(right)
-        for layout in (l, r):
-            layout.setContentsMargins(0, 0, 0, 0)
-        for layout, title in ((l, "课程笔记"), (r, "实时翻译  ·  EN → 中文")):
-            heading = QLabel(title)
-            heading.setStyleSheet("font-size:17px;font-weight:600;color:#225A9C;")
-            layout.addWidget(heading)
-        l.addWidget(self.notes, 1)
-        r.addWidget(self.history, 1)
-        splitter.addWidget(left)
-        splitter.addWidget(right)
+        splitter.setHandleWidth(8)
+        splitter.addWidget(self.notes)
+        splitter.addWidget(self.history)
         splitter.setChildrenCollapsible(False)
         splitter.setSizes([540, 620])
         body.addWidget(splitter, 1)
-        self.status = QLabel("就绪。选择输入来源，然后点击开始。")
-        self.status.setWordWrap(True)
+        self.status = QLabel("就绪 · 选择音源并开始")
+        self.status.setWordWrap(False)
+        self.status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.status.setStyleSheet("font-size:11px;color:#8295AD;")
         body.addWidget(self.status)
+        footer = QHBoxLayout()
         self.quota = QLabel()
-        self.quota.setWordWrap(True)
+        self.quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.quota.setStyleSheet("color:#6C829D;font-size:11px;")
-        body.addWidget(self.quota)
-        self.server_quota = QLabel("Groq 服务端额度：尚未取得响应；纯本地字幕不消耗 API。")
-        self.server_quota.setTextFormat(Qt.PlainText)
-        self.server_quota.setWordWrap(True)
-        self.server_quota.setStyleSheet("color:#6C829D;font-size:11px;")
-        self.server_quota.setToolTip(
-            "显示最近一次 Groq 响应中的请求/Token 限额快照，不是费用余额或持续同步的账号总额度。"
+        footer.addWidget(self.quota, 1)
+        footer.addWidget(QLabel("音量"))
+        self.level = QProgressBar()
+        self.level.setRange(0, 100)
+        self.level.setTextVisible(False)
+        self.level.setFixedSize(90, 9)
+        self.level.setStyleSheet(
+            "QProgressBar {background:#DFE8F4;border:0;border-radius:4px;} QProgressBar::chunk {background:#4C96EF;border-radius:4px;}"
         )
+        footer.addWidget(self.level)
+        body.addLayout(footer)
+        self.server_quota = QLabel("Groq 额度：等待服务端响应")
+        self.server_quota.setTextFormat(Qt.PlainText)
+        self.server_quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.server_quota.setStyleSheet("color:#6C829D;font-size:10px;")
+        self.server_quota.setToolTip("最近一次 Groq 限额快照，不是费用余额或所有模型的实时总额度。")
         body.addWidget(self.server_quota)
         self.build_settings(config)
         self.sig.status.connect(self.status.setText)
         self.sig.caption.connect(self.caption)
         self.sig.notes.connect(self.notes.update)
-        self.sig.note_status.connect(self.notes.status.setText)
+        self.sig.note_status.connect(self.notes.note_status)
         self.sig.error.connect(self.error)
         self.sig.capture_failed.connect(self.capture_failed)
         self.sig.tested.connect(self.tested)
@@ -439,18 +443,6 @@ class Controls(WindowOptions, QWidget):
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         form.setVerticalSpacing(14)
-        self.stt_backend = QComboBox()
-        self.stt_backend.addItem("Groq Whisper · 云端识别", "cloud")
-        self.stt_backend.addItem("Apple Speech · 本地识别（实验）", "apple")
-        self.stt_backend.setCurrentIndex(max(0, self.stt_backend.findData(config.get("stt_backend", "cloud"))))
-        form.addRow("语音识别", self.stt_backend)
-        self.translation_backend = QComboBox()
-        self.translation_backend.addItem("Groq · 云端翻译", "cloud")
-        self.translation_backend.addItem("Apple Translate · 本地翻译（macOS 15+）", "apple")
-        self.translation_backend.setCurrentIndex(
-            max(0, self.translation_backend.findData(config.get("translation_backend", "cloud")))
-        )
-        form.addRow("翻译方式", self.translation_backend)
         prepare = QPushButton("准备 Apple 英中翻译语言包…")
         prepare.clicked.connect(self.prepare_translation)
         form.addRow(prepare)
@@ -513,6 +505,12 @@ class Controls(WindowOptions, QWidget):
         self.history.set_font(self.size.value())
         self.size.valueChanged.connect(self.history.set_font)
         form.addRow("翻译字号", self.size)
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(30, 100)
+        self.opacity_slider.setValue(int(config.get("opacity", 100)))
+        self.opacity_slider.valueChanged.connect(lambda n: self.setWindowOpacity(n / 100))
+        self.setWindowOpacity(self.opacity_slider.value() / 100)
+        form.addRow("窗口不透明度", self.opacity_slider)
         body.addLayout(form)
         help_button = QPushButton("免费 key / 使用说明")
         help_button.clicked.connect(
@@ -544,13 +542,13 @@ class Controls(WindowOptions, QWidget):
                 "glossary": self.glossary.text().strip()[:500],
                 "threshold": round(self.engine.threshold * 1000),
                 "font_size": self.size.value(),
-                "pinned": self._pinned,
+                "display_mode": self.display.currentData(),
                 "opacity": self.opacity_slider.value(),
             }
         )
         # Whitelist preferences: credentials are exclusively managed by Keychain.
         data = {k: self.engine.config[k] for k in DEFAULTS}
-        for k in ("notes_enabled", "glossary", "threshold", "font_size", "pinned", "opacity"):
+        for k in ("notes_enabled", "glossary", "threshold", "font_size", "display_mode", "opacity"):
             data[k] = self.engine.config[k]
         temp = DATA_ROOT / "config.tmp"
         temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -563,13 +561,14 @@ class Controls(WindowOptions, QWidget):
             return
         local_stt = self.stt_backend.currentData() == "apple"
         local_tr = self.translation_backend.currentData() == "apple"
-        self.mode_label.setText(
-            f"识别：{'Apple 本地' if local_stt else 'Groq Whisper'}  ·  翻译：{'Apple 本地' if local_tr else 'Groq'}  ·  笔记：{'Groq' if self.notes_on.isChecked() else '关闭'}"
-        )
         st = self.engine.usage.stats()
         self.quota.setText(
-            f"本机近24小时语音 API 用量：{st['req_day']} 次 / {st['sec_day'] / 60:.1f} 分钟 · 本分钟 {st['rpm']} 次。非账号剩余额度；不含其他设备及文字模型。"
-            + (" Apple 识别不消耗语音 API。" if local_stt else "")
+            f"本机24h语音 API：{st['req_day']} 次 · {st['sec_day'] / 60:.1f} 分钟"
+            + ("  |  本地识别不消耗语音额度" if local_stt else "")
+        )
+        self.quota.setToolTip(
+            "仅本机滚动24小时语音 API 统计，不含其他设备和文字模型；不是账号剩余额度。"
+            + (" 当前翻译使用 Apple 本地。" if local_tr else "")
         )
 
     def prepare_translation(self):
@@ -693,6 +692,7 @@ class Controls(WindowOptions, QWidget):
     def toggle(self):
         if self.engine.active:
             self.engine.stop()
+            self.paused = True
             self.status.setText("已暂停，输入已释放；已识别原文保存，正在整理最后一批笔记。")
         else:
             if (
@@ -705,9 +705,11 @@ class Controls(WindowOptions, QWidget):
                 return
             self.config_from_ui()
             self.engine.start(self.input.currentData())
+            if self.engine.active:
+                self.paused = False
         active = self.engine.active
-        self.start.setEnabled(not active)
-        self.stop_button.setEnabled(active)
+        self.start.setText("Ⅱ 暂停" if active else "▶ 继续" if self.paused else "▶ 开始")
+        self.stop_button.setEnabled(active or self.paused)
         if not active:
             self.level.setValue(0)
         for w in (
@@ -726,6 +728,15 @@ class Controls(WindowOptions, QWidget):
             self.translation_backend,
         ):
             w.setEnabled(not active)
+
+    def stop_capture(self):
+        if self.engine.active:
+            self.toggle()
+        self.paused = False
+        self.start.setText("▶ 开始")
+        self.stop_button.setEnabled(False)
+        self.level.setValue(0)
+        self.status.setText("已停止 · 原文与笔记已保存；未完成的笔记整理可能继续。")
 
     def caption(self, ident, text, translation):
         if not self.engine.active or ident < self.current:

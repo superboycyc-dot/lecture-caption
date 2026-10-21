@@ -7,7 +7,7 @@ version = tomllib.loads((source/'pyproject.toml').read_text())['project']['versi
 site = sysconfig.get_paths()['purelib']
 a = Analysis([str(source/'caption.py')], pathex=[str(source),site],
     binaries=[(str(source/'native/bin/Keychain'),'native/bin'),(str(source/'native/bin/SystemAudio'),'native/bin'),(str(source/'native/bin/LocalSpeech'),'native/bin'),(str(source/'native/bin/LocalTranslate'),'native/bin')],
-    datas=[(str(source/'vendor'),'vendor'),(str(source/'docs'),'docs'),(str(source/'LICENSE'),'.'),(str(source/'licenses'),'licenses'),(str(source/'THIRD_PARTY_NOTICES.md'),'.'),(str(source/'config.example.json'),'.'),(str(source/'assets/AppIcon.png'),'assets')],
+    datas=[(str(source/'vendor'),'vendor'),(str(source/'docs'),'docs'),(str(source/'LICENSE'),'.'),(str(source/'licenses'),'licenses'),(str(source/'THIRD_PARTY_NOTICES.md'),'.'),(str(source/'config.example.json'),'.'),(str(source/'assets/AppIcon.png'),'assets'),(str(source/'assets/icons'),'assets/icons')],
     hiddenimports=['wave','_sounddevice_data','scipy.signal','numpy'],
     excludes=['tkinter','matplotlib','pytest'], noarchive=False)
 pyz = PYZ(a.pure)
