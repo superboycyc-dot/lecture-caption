@@ -99,6 +99,12 @@ class CaptionHistory(QWidget):
         self.font_size = 18
         self.display_mode = "bilingual"
         self.follow = True
+        self.scroll_timer = QTimer(self)
+        self.scroll_timer.setSingleShot(True)
+        self.scroll_timer.timeout.connect(self.scroll_latest)
+        self.position_timer = QTimer(self)
+        self.position_timer.setSingleShot(True)
+        self.position_timer.timeout.connect(self.on_scroll_position)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.scroll = QScrollArea()
@@ -147,7 +153,7 @@ class CaptionHistory(QWidget):
     def reader_scrolled(self, *_):
         self.animation.stop()
         self.follow = False
-        QTimer.singleShot(0, self.on_scroll_position)
+        self.position_timer.start(0)
 
     def on_range_changed(self, *_):
         if self.follow:
@@ -204,7 +210,7 @@ class CaptionHistory(QWidget):
         self.display_mode = mode
         for ident in self.entries:
             self.style_entry(ident)
-        QTimer.singleShot(0, self.scroll_latest)
+        self.scroll_timer.start(0)
 
     def set_font(self, size):
         self.font_size = size
@@ -257,7 +263,7 @@ class CaptionHistory(QWidget):
             self.timestamps.pop(oldest, None)
             self.rows.removeWidget(frame)
             frame.deleteLater()
-        QTimer.singleShot(0, self.scroll_latest)
+        self.scroll_timer.start(0)
 
 
 def icon_button(name, tooltip, callback):
@@ -306,7 +312,9 @@ class Controls(QWidget):
         self.about = None
         self.setup_busy = False
         self.onboarding = None
-        self.onboarding_seen = config.get("onboarding_seen", False)
+        self.onboarding_seen = config.get("onboarding_seen", False) and config.get("onboarding_flow_version", 0) >= 3
+        self.onboarding_flow_version = config.get("onboarding_flow_version", 0)
+        self.tour = None
         header = QHBoxLayout()
         header.setSpacing(7)
         icon = QToolButton()
@@ -442,7 +450,10 @@ class Controls(QWidget):
         QShortcut(QKeySequence("Ctrl+Space"), self, activated=self.toggle)
         QShortcut(QKeySequence("Meta+,"), self, activated=self.show_settings)
         QShortcut(QKeySequence("Meta+Q"), self, activated=self.close)
-        QTimer.singleShot(0, lambda: self.credential_action("load"))
+        self.credential_timer = QTimer(self)
+        self.credential_timer.setSingleShot(True)
+        self.credential_timer.timeout.connect(lambda: self.credential_action("load"))
+        self.credential_timer.start(0)
         self.update_timer = QTimer(self)
         self.update_timer.setInterval(6 * 60 * 60 * 1000)
         self.update_timer.timeout.connect(self.automatic_update)
@@ -483,6 +494,7 @@ class Controls(QWidget):
         form = QFormLayout()
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
         form.setVerticalSpacing(12)
+        form.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.key = QLineEdit(os.environ.get("GROQ_API_KEY", ""))
         self.key.setEchoMode(QLineEdit.Password)
         self.key.setPlaceholderText("自动读取已保存 key，或粘贴新 key")
@@ -510,15 +522,26 @@ class Controls(QWidget):
         self.setWindowOpacity(self.opacity_slider.value() / 100)
         form.addRow("窗口不透明度", self.opacity_slider)
         body.addLayout(form)
-        self.settings_custom = QGroupBox("Customize / 自定义（可选）")
+        self.settings_custom = QToolButton()
+        self.settings_custom.setText("高级设置")
+        self.settings_custom.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.settings_custom.setCheckable(True)
-        self.settings_custom.setChecked(False)
-        group_layout = QVBoxLayout(self.settings_custom)
+        self.settings_custom.setArrowType(Qt.RightArrow)
+        self.settings_custom.setStyleSheet(
+            "QToolButton {text-align:left;background:transparent;border:0;padding:10px 0;color:#233956;font-weight:600;}"
+        )
         advanced = QWidget()
-        group_layout.addWidget(advanced)
+        advanced.setStyleSheet("background:transparent;")
         advanced.setVisible(False)
         self.settings_custom.toggled.connect(advanced.setVisible)
+        self.settings_custom.toggled.connect(
+            lambda value: self.settings_custom.setArrowType(Qt.DownArrow if value else Qt.RightArrow)
+        )
         more = QFormLayout(advanced)
+        more.setContentsMargins(0, 8, 0, 8)
+        more.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        more.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        more.setVerticalSpacing(12)
         self.translation = QComboBox()
         self.translation.setEditable(True)
         self.translation.addItems(["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
@@ -562,10 +585,11 @@ class Controls(QWidget):
         row.addWidget(self.delete_key_button)
         more.addRow(row)
         self.auto_update = QCheckBox("自动更新（自动检查和下载，空闲时安装）")
-        self.auto_update.setChecked(config.get("auto_update", True))
+        self.auto_update.setChecked(config.get("auto_update", True) if config.get("auto_update_schema") == 1 else True)
         self.auto_update.setToolTip("启动及每6小时检查官方 GitHub；有课堂内容或正在配置时不会自动重启。")
-        more.addRow(self.auto_update)
+        body.addWidget(self.auto_update)
         body.addWidget(self.settings_custom)
+        body.addWidget(advanced)
         body.addStretch()
         close = QPushButton("完成")
         close.setObjectName("primary")
@@ -593,8 +617,8 @@ class Controls(QWidget):
         elif profile == "cloud":
             self.onboarding.begin_cloud()
         elif profile == "tour":
-            self.onboarding.pages.setCurrentWidget(self.onboarding.ready)
-            self.onboarding.message.setText("这是界面教学，未修改任何模式或申请权限。")
+            self.onboarding.hide()
+            self.start_tour()
         elif profile == "permissions":
             self.onboarding.profile = "permissions"
             self.onboarding.set_busy(True)
@@ -602,6 +626,18 @@ class Controls(QWidget):
             self.onboarding.prepare_permissions()
         else:
             self.onboarding.pages.setCurrentWidget(self.onboarding.welcome)
+
+    def start_tour(self):
+        from tutorial import TutorialOverlay
+
+        if self.tour:
+            self.tour.close()
+            self.tour.deleteLater()
+        self.tour = TutorialOverlay(self)
+        self.tour.finished.connect(lambda: self.status.setText("准备就绪 · 点击顶部「开始」收音"))
+        self.tour.show()
+        self.tour.raise_()
+        self.tour.setFocus()
 
     def apply_setup_profile(self, profile):
         if self.engine.active or self.finishing:
@@ -689,6 +725,8 @@ class Controls(QWidget):
             "last_export_dir": self.last_export_dir,
             "auto_update": self.auto_update.isChecked(),
             "onboarding_seen": self.onboarding_seen,
+            "onboarding_flow_version": self.onboarding_flow_version,
+            "auto_update_schema": 1,
         }
         # Only apply pipeline preferences while capture is stopped. Active changes
         # are coalesced into a generation-safe handoff by apply_live_selection.
@@ -706,6 +744,8 @@ class Controls(QWidget):
             "last_export_dir",
             "auto_update",
             "onboarding_seen",
+            "onboarding_flow_version",
+            "auto_update_schema",
         ):
             data[k] = combined[k]
         temp = DATA_ROOT / "config.tmp"
@@ -942,7 +982,16 @@ class Controls(QWidget):
         elif self.remember_key.isChecked():
             self.credential_action("save")
 
+    def focusNextPrevChild(self, forward):
+        if self.tour and self.tour.isVisible():
+            target = self.tour.next_button if not self.tour.next_button.hasFocus() else self.tour.skip
+            target.setFocus()
+            return True
+        return super().focusNextPrevChild(forward)
+
     def toggle(self):
+        if self.tour and self.tour.isVisible():
+            return
         if self.setup_busy:
             self.status.setText("正在准备权限和资源，准备完成后即可开始。")
             return
@@ -1177,7 +1226,11 @@ class Controls(QWidget):
                 self.install_update()
 
     def install_update(self):
-        if self.setup_busy or (self.onboarding and self.onboarding.isVisible()):
+        if (
+            self.setup_busy
+            or (self.onboarding and self.onboarding.isVisible())
+            or (self.tour and self.tour.isVisible())
+        ):
             self.status.setText("新版已就绪；首次配置结束后可从关于窗口安装。")
             return
         if self.engine.active or self.finishing or self.paused or self.engine.notes_busy or self.notes.dirty:

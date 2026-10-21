@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.0 — local preview, unreleased
+
+- Replace the highlight text button with an original H / yellow marker icon. Left-align note menu actions and use “立即整理”.
+- Replace the Customize checkbox/frame with a collapsed “高级设置” disclosure. Enable automatic updates by default, preserving subsequent explicit opt-out.
+- Make first-run setup Groq-first, preparing Apple backup resources in the same flow; only explicit Skip selects local captions with notes disabled. Apple preparation failure does not block Groq setup.
+- Replace the final text tutorial with an input-blocking grey spotlight overlay, white arrows to actual controls, step counters, Next and Skip. Never activate capture from the tour.
+- Bind deferred caption/key-load timers to their widgets to prevent callbacks after window disposal.
+
 ## 2.2.0 — local preview, unreleased
 
 - Add short first-run teaching, source choice, one-action Apple setup and official Groq registration/key onboarding. Validate/save keys and prepare permissions in one flow, without capture.

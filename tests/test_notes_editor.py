@@ -73,7 +73,7 @@ class EditorTests(TestCase):
         self.assertNotIn("==", self.pane.preview.toPlainText())
         self.assertIn("~~划掉~~", self.pane.original)
         self.assertEqual(
-            [action.text() for action in self.pane.menu.actions()], ["查看源代码", "立刻 Summary", "打开文件夹"]
+            [action.text() for action in self.pane.menu.actions()], ["查看源代码", "立即整理", "打开文件夹"]
         )
 
     def test_markdown_typing_and_paste_become_rich_text(self):

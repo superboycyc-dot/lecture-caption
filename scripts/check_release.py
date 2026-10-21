@@ -41,6 +41,8 @@ def main():
         "updater.py",
         "notes_editor.py",
         "onboarding.py",
+        "tutorial.py",
+        "assets/icons/highlight.svg",
         "native/GroqSetup.swift",
         "native/Permissions.swift",
         "docs/releases/v" + version + ".md",

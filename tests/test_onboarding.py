@@ -23,6 +23,15 @@ class OnboardingTests(TestCase):
         self.store.start()
         self.win = caption.Controls()
         self.win.show()
+        self.permission_patch = patch.object(
+            onboarding, "request_microphone", side_effect=lambda _, callback: callback(True)
+        )
+        self.system_patch = patch.object(local_services, "request_system_audio_permission")
+        self.resource_patch = patch.object(local_services, "prepare_local_resources")
+        self.account_patch = patch.object(onboarding.SetupWizard, "open_account")
+        for context in (self.permission_patch, self.system_patch, self.resource_patch, self.account_patch):
+            context.start()
+            self.addCleanup(context.stop)
         self.wait(lambda: not self.win.credential_busy)
 
     def tearDown(self):
@@ -49,9 +58,9 @@ class OnboardingTests(TestCase):
     def test_local_one_action_prepares_permissions_and_resources_without_capture(self):
         self.win.show_setup()
         wizard = self.win.onboarding
-        wizard.source.setCurrentIndex(0)
         if self.win.input.count() == 1:
             self.win.input.addItem("Synthetic microphone", 999)
+        self.win.input.setCurrentIndex(1)
         with (
             patch.object(onboarding, "request_microphone", side_effect=lambda _, cb: cb(True)) as permission,
             patch.object(local_services, "prepare_local_resources") as resources,
@@ -73,10 +82,11 @@ class OnboardingTests(TestCase):
     def test_cloud_paste_validates_saves_and_prepares_current_input(self):
         self.win.show_setup()
         wizard = self.win.onboarding
-        wizard.source.setCurrentIndex(1)
+        self.win.input.setCurrentIndex(self.win.input.findData("system"))
         self.win.key.clear()
         with patch.object(wizard, "open_account") as account:
             wizard.begin_cloud()
+            self.wait(lambda: not wizard.busy)
             account.assert_called_once()
         wizard.key.setText("synthetic-onboarding-key")
         with (
@@ -86,33 +96,51 @@ class OnboardingTests(TestCase):
             wizard.submit_key()
             self.wait(lambda: not wizard.busy)
             validate.assert_called_once()
-            permission.assert_called_once()
+            permission.assert_not_called()
         self.assertEqual(self.win.credentials.value, "synthetic-onboarding-key")
         self.assertEqual(wizard.pages.currentWidget(), wizard.ready)
         self.assertTrue(self.win.notes_on.isChecked())
         self.assertFalse(self.win.engine.active)
 
-    def test_failed_permission_retries_without_key_validation_and_never_records(self):
+    def test_failed_key_can_retry_without_starting_capture(self):
         self.win.show_setup()
         wizard = self.win.onboarding
-        wizard.source.setCurrentIndex(1)
         wizard.begin_cloud()
+        self.wait(lambda: not wizard.busy)
         wizard.key.setText("synthetic-onboarding-key")
         with (
-            patch.object(onboarding, "validate_groq_key") as validate,
-            patch.object(
-                local_services, "request_system_audio_permission", side_effect=RuntimeError("permission denied")
-            ),
+            patch.object(onboarding, "validate_groq_key", side_effect=RuntimeError("invalid key")) as validate,
             patch.object(self.win.engine, "start") as capture,
         ):
             wizard.submit_key()
             self.wait(lambda: not wizard.busy)
             self.assertNotEqual(wizard.pages.currentWidget(), wizard.ready)
-            with patch.object(local_services, "request_system_audio_permission"):
-                wizard.submit_key()
-                self.wait(lambda: not wizard.busy)
-            self.assertEqual(validate.call_count, 1)
+            validate.side_effect = None
+            wizard.submit_key()
+            self.wait(lambda: not wizard.busy)
+            self.assertEqual(wizard.pages.currentWidget(), wizard.ready)
+            self.assertEqual(validate.call_count, 2)
             capture.assert_not_called()
+
+    def test_apple_preparation_failure_still_allows_groq_without_local_fallback(self):
+        self.win.show_setup()
+        wizard = self.win.onboarding
+        with patch.object(
+            local_services, "prepare_local_resources", side_effect=RuntimeError("synthetic asset failure")
+        ):
+            wizard.begin_cloud()
+            self.wait(lambda: not wizard.busy)
+        self.assertEqual(wizard.pages.currentWidget(), wizard.cloud)
+        self.assertIn("仍可继续配置 Groq", wizard.message.text())
+        self.assertEqual(self.win.stt_backend.currentData(), "cloud")
+        self.assertTrue(self.win.notes_on.isChecked())
+        wizard.key.setText("synthetic-onboarding-key")
+        with patch.object(onboarding, "validate_groq_key"):
+            wizard.submit_key()
+            self.wait(lambda: not wizard.busy)
+        self.assertEqual(wizard.pages.currentWidget(), wizard.ready)
+        self.assertIn("备用资源尚未就绪", wizard.ready_label.text())
+        self.assertFalse(self.win.engine.active)
 
     def test_default_settings_hide_customize_and_keep_source_mode_when_preparing_permissions(self):
         self.assertFalse(self.win.settings_custom.isChecked())

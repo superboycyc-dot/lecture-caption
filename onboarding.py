@@ -35,7 +35,7 @@ def validate_groq_key(key, models):
             raise RuntimeError(f"验证返回 HTTP {response.status_code}。请检查 key 后重试。")
         available = {item["id"] for item in response.json()["data"]}
         if set(models) - available:
-            raise RuntimeError("账号暂未开放默认模型。请到 Customize 选择账号可用的模型。")
+            raise RuntimeError("账号暂未开放默认模型。请到高级设置选择账号可用的模型。")
     except requests.RequestException:
         raise RuntimeError("网络未连接或请求超时，请稍后重试。") from None
     except (ValueError, KeyError, TypeError):
@@ -84,165 +84,132 @@ class SetupWizard(QDialog):
         self.busy = False
         self.profile = None
         self.verified_key = None
-        self.setWindowTitle("Lecture Caption · 首次使用指南")
+        self.apple_prepared = False
+        self.preparing_initial = False
+        self.setWindowTitle("Lecture Caption · 首次设置")
         self.setWindowModality(Qt.WindowModal)
-        self.resize(650, 560)
+        self.resize(580, 440)
         body = QVBoxLayout(self)
-        body.setContentsMargins(26, 22, 26, 22)
-        body.setSpacing(14)
-        title = QLabel("几步准备好，专心听课")
-        title.setStyleSheet("font-size:26px;font-weight:700;color:#233956;")
+        body.setContentsMargins(28, 24, 28, 24)
+        body.setSpacing(16)
+        title = QLabel("让 AI 帮你听课、翻译和整理笔记")
+        title.setWordWrap(True)
+        title.setStyleSheet("font-size:24px;font-weight:700;color:#233956;")
         body.addWidget(title)
-        subtitle = QLabel("识别 → 翻译 → 整理笔记。设置时不会录音，进入课堂后点「开始」才收音。")
-        subtitle.setWordWrap(True)
-        body.addWidget(subtitle)
         self.pages = QStackedWidget()
         body.addWidget(self.pages, 1)
         self.welcome = QWidget()
         welcome = QVBoxLayout(self.welcome)
         welcome.setContentsMargins(0, 0, 0, 0)
-        welcome.addWidget(QLabel("这次主要听什么？"))
-        self.source = QComboBox()
-        self.source.addItem("教室上课 · 麦克风", "microphone")
-        self.source.addItem("线上会议 / 视频 · 电脑声音", "system")
-        if controls.input.currentData() == "system":
-            self.source.setCurrentIndex(1)
-        welcome.addWidget(self.source)
-        self.local_button = QPushButton("一键本地字幕\n不需要账号或 key · 首次准备 Apple 语言资源")
-        self.local_button.clicked.connect(self.begin_local)
-        welcome.addWidget(self.local_button)
-        self.cloud_button = QPushButton("Groq 字幕 + 自动笔记（推荐）\n适合完整课堂记录 · 有免费额度，需注册并创建 key")
+        intro = QLabel("我们需要使用 AI 模型（由 Groq 提供免费额度），来识别课堂内容、翻译并整理成连贯笔记。")
+        intro.setWordWrap(True)
+        welcome.addWidget(intro)
+        detail = QLabel("软件会先自动准备 Apple 本地能力，作为 Groq 不可用时的备用。设置时不会开始录音。")
+        detail.setWordWrap(True)
+        detail.setStyleSheet("color:#72849B;")
+        welcome.addWidget(detail)
+        welcome.addStretch()
+        self.cloud_button = QPushButton("连接至 Groq 取得 API")
         self.cloud_button.setObjectName("primary")
         self.cloud_button.clicked.connect(self.begin_cloud)
         welcome.addWidget(self.cloud_button)
-        hint = QLabel(
-            "本地模式只做识别和翻译；自动笔记仍需 Groq。\n秒数、噪声门槛和模型参数已使用默认值，不必逐项设置。"
-        )
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color:#6C829D;")
-        welcome.addWidget(hint)
-        welcome.addStretch()
+        self.local_button = QPushButton("跳过（无法使用笔记功能）")
+        self.local_button.clicked.connect(self.begin_local)
+        welcome.addWidget(self.local_button)
         self.pages.addWidget(self.welcome)
         self.cloud = QWidget()
         cloud = QVBoxLayout(self.cloud)
         cloud.setContentsMargins(0, 0, 0, 0)
-        cloud.addWidget(QLabel("只需要把 Groq API key 交给软件"))
-        steps = QLabel(
-            "① 在官方页面登录 / 注册。\n② 点击 Create API Key，任意命名，创建后复制 key。\n③ 回到这里粘贴；软件自动验证、保存并准备权限。"
-        )
+        steps = QLabel("登录 / 注册 Groq → Create API Key → 复制 key。\n回到这里点下一步，软件自动粘贴、验证并保存。")
         steps.setWordWrap(True)
         cloud.addWidget(steps)
-        self.account = QPushButton("打开官方注册 / 创建 key 页面")
+        self.account = QPushButton("打开 Groq 注册 / API 页面")
         self.account.clicked.connect(self.open_account)
         cloud.addWidget(self.account)
-        self.key = QLineEdit()
+        self.key = QLineEdit(controls.key.text())
         self.key.setEchoMode(QLineEdit.Password)
-        self.key.setPlaceholderText("粘贴刚复制的 API key")
-        self.key.setText(controls.key.text())
+        self.key.setPlaceholderText("粘贴 API key，或复制后直接点下一步")
         cloud.addWidget(self.key)
-        self.connect = QPushButton("粘贴并完成配置")
+        self.connect = QPushButton("下一步")
         self.connect.setObjectName("primary")
         self.connect.clicked.connect(self.submit_key)
         cloud.addWidget(self.connect)
-        privacy = QLabel(
-            "只验证连接，不上传音频。验证后存入 macOS 钥匙串，下次无需重填。\nGroq 模式开始收音后会发送音频、原文和笔记到 Groq。"
-        )
+        privacy = QLabel("key 保存到 macOS 钥匙串。注册和验证不会上传课堂内容；开始后使用 Groq 处理音频、翻译和笔记。")
         privacy.setWordWrap(True)
-        privacy.setStyleSheet("color:#6C829D;")
+        privacy.setStyleSheet("color:#72849B;")
         cloud.addWidget(privacy)
         cloud.addStretch()
         self.pages.addWidget(self.cloud)
         self.ready = QWidget()
         ready = QVBoxLayout(self.ready)
         ready.setContentsMargins(0, 0, 0, 0)
-        ready.addWidget(QLabel("记住这几个入口就够了"))
-        for text in (
-            "▶ 顶部「开始」收音，再点变暂停；「结束」后可保存 MD 或导出 PDF。",
-            "⋯ 笔记右上角「立刻 Summary」：不用等自动整理（需 Groq）。",
-            "⇥ 笔记左上角导入 .md 续课；直接在笔记中编辑，工具栏可加粗 / 高亮。",
-            "⌄ 顶部第一项切换麦克风 / 电脑声音，录音中也能切。",
-            "⌄ 顶部「识别」「翻译」切换本地 / Groq；双语栏切换显示。",
-            "⚙ 更换具体模型或调整参数，在设置的 Customize 中展开。",
-        ):
-            label = QLabel(text)
-            label.setWordWrap(True)
-            label.setStyleSheet("padding:8px;background:white;border-radius:7px;")
-            ready.addWidget(label)
-        self.finish_button = QPushButton("准备好了，进入课堂")
+        self.ready_label = QLabel("配置已完成。接下来直接在主窗口看看每个按钮的用途。")
+        self.ready_label.setWordWrap(True)
+        ready.addWidget(self.ready_label)
+        ready.addStretch()
+        self.finish_button = QPushButton("下一步")
         self.finish_button.setObjectName("primary")
         self.finish_button.clicked.connect(self.finish)
         ready.addWidget(self.finish_button)
         self.pages.addWidget(self.ready)
-        self.message = QLabel("")
+        self.message = QLabel()
         self.message.setWordWrap(True)
         self.message.setOpenExternalLinks(True)
         self.message.setStyleSheet("color:#346DAF;")
         body.addWidget(self.message)
-        footer = QHBoxLayout()
-        self.back = QPushButton("返回选择")
+        self.back = QPushButton("返回")
         self.back.clicked.connect(lambda: self.pages.setCurrentWidget(self.welcome))
-        footer.addWidget(self.back)
-        self.custom = QPushButton("Customize / 自定义")
-        self.custom.clicked.connect(self.customize)
-        footer.addWidget(self.custom)
-        later = QPushButton("稍后设置")
-        later.clicked.connect(self.reject)
-        footer.addWidget(later)
-        body.addLayout(footer)
+        body.addWidget(self.back)
+        self.back.hide()
         self.step_done.connect(self.on_step)
         self.pages.currentChanged.connect(
             lambda _: self.back.setVisible(self.pages.currentWidget() is not self.welcome)
         )
-        self.back.hide()
+        # Preserve current input. It is taught on the actual main-window selector.
+        self.source = QComboBox(self)
+        self.source.hide()
+        self.source.addItem("麦克风", "microphone")
+        self.source.addItem("电脑声音", "system")
+        self.source.setCurrentIndex(1 if controls.input.currentData() == "system" else 0)
 
     def set_busy(self, busy):
         self.busy = self.controls.setup_busy = busy
-        for widget in (
-            self.local_button,
-            self.cloud_button,
-            self.source,
-            self.connect,
-            self.key,
-            self.back,
-            self.custom,
-        ):
+        for widget in (self.local_button, self.cloud_button, self.connect, self.key, self.back):
             widget.setEnabled(not busy)
         self.controls.start.setEnabled(not busy)
 
     def select_source(self):
-        if self.source.currentData() == "system":
-            self.controls.input.setCurrentIndex(self.controls.input.findData("system"))
-        elif self.controls.input.currentData() == "system":
-            for index in range(self.controls.input.count()):
-                if self.controls.input.itemData(index) != "system":
-                    self.controls.input.setCurrentIndex(index)
-                    return True
-            self.message.setText("没有检测到麦克风。请连接设备，或选择「电脑声音」。")
-            return False
         return True
 
     def begin_local(self):
-        if self.busy or not self.select_source():
+        if self.busy:
             return
         if not self.controls.apply_setup_profile("local"):
             return
         self.profile = "local"
+        self.preparing_initial = True
         self.set_busy(True)
-        self.message.setText("正在一键准备所需权限与 Apple 语言资源，首次下载可能需要几分钟…")
+        self.message.setText("正在自动准备 Apple 本地权限和语言资源；跳过 Groq 后不会生成笔记…")
         self.prepare_permissions()
 
     def begin_cloud(self):
-        if self.busy or not self.select_source():
+        if self.busy:
             return
         if not self.controls.apply_setup_profile("cloud"):
             return
         self.profile = "cloud"
         self.key.setText(self.controls.key.text())
+        if self.apple_prepared:
+            self.show_cloud_page()
+            return
+        self.preparing_initial = True
+        self.set_busy(True)
+        self.message.setText("先自动准备 Apple 本地备用能力，随后连接 Groq。首次准备可能需要几分钟…")
+        self.prepare_permissions()
+
+    def show_cloud_page(self):
         self.pages.setCurrentWidget(self.cloud)
-        self.message.setText("已有 key 可以直接粘贴；已保存的 key 可以直接点完成。")
-        if self.controls.key.text().strip():
-            self.connect.setText("使用现有 key 并完成配置")
-        else:
+        if not self.controls.key.text().strip():
             self.open_account()
 
     def open_account(self):
@@ -255,7 +222,7 @@ class SetupWizard(QDialog):
     def submit_key(self):
         if self.busy:
             return
-        # Clipboard access is strictly an explicit Paste button action.
+        # Read clipboard only on the explicitly labeled Next action with an empty field.
         key = self.key.text().strip()
         if not key:
             key = QApplication.clipboard().text().strip()
@@ -265,9 +232,9 @@ class SetupWizard(QDialog):
             return
         self.controls.key.setText(key)
         self.set_busy(True)
-        self.message.setText("正在验证并保存 key，随后自动准备权限…")
+        self.message.setText("正在验证并保存 key…")
         if self.verified_key == key:
-            self.prepare_permissions()
+            self.on_step("key", True, "API 已验证。")
             return
         store = self.controls.credentials
         models = [
@@ -308,8 +275,8 @@ class SetupWizard(QDialog):
             )
             return
         system = self.controls.input.currentData() == "system"
-        speech = self.controls.stt_backend.currentData() == "apple"
-        translation = self.controls.translation_backend.currentData() == "apple"
+        speech = self.preparing_initial or self.controls.stt_backend.currentData() == "apple"
+        translation = self.preparing_initial or self.controls.translation_backend.currentData() == "apple"
 
         def run():
             try:
@@ -326,33 +293,43 @@ class SetupWizard(QDialog):
     def on_step(self, stage, ok, message):
         self.message.setText(message)
         self.controls.status.setText(message)
+        self.set_busy(False)
         if stage == "key" and ok:
             self.verified_key = self.key.text().strip()
             self.controls.key_status.setText(message)
-            self.prepare_permissions()
+            self.ready_label.setText("Groq 已连接，识别、翻译和自动笔记均已启用。下一步开始窗口教学。")
+            if not self.apple_prepared:
+                self.ready_label.setText(self.ready_label.text() + " Apple 备用资源尚未就绪，可稍后在设置中重试。")
+            self.controls.save_preferences()
+            self.pages.setCurrentWidget(self.ready)
             return
-        self.set_busy(False)
+        if stage == "ready" and self.preparing_initial:
+            self.preparing_initial = False
+            self.apple_prepared = ok
+            if self.profile == "cloud":
+                if not ok:
+                    self.message.setText("Apple 备用能力暂未准备完成：" + message + " 仍可继续配置 Groq。")
+                self.show_cloud_page()
+            elif ok:
+                self.ready_label.setText(
+                    "已启用 Apple 本地字幕。你跳过了 Groq，因此无法使用笔记整理。下一步开始窗口教学。"
+                )
+                self.pages.setCurrentWidget(self.ready)
+            return
         if stage == "ready" and ok:
             self.controls.save_preferences()
             self.pages.setCurrentWidget(self.ready)
-        elif not ok:
-            self.connect.setText("重试并完成配置")
 
     def finish(self):
         self.controls.onboarding_seen = True
+        self.controls.onboarding_flow_version = 3
         self.controls.save_preferences()
         self.accept()
         self.key.clear()
-        self.controls.start.setFocus()
-        self.controls.status.setText("准备就绪 · 点击顶部「开始」收音")
-
-    def customize(self):
-        self.hide()
-        self.controls.onboarding_seen = True
-        self.controls.settings_custom.setChecked(True)
-        self.controls.show_settings()
+        self.controls.start_tour()
 
     def done(self, result):
         self.controls.onboarding_seen = True
+        self.controls.onboarding_flow_version = 3
         self.controls.save_preferences()
         super().done(result)

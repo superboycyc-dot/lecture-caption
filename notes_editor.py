@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QLabel,
     QPushButton,
+    QWidgetAction,
 )
 
 HIGHLIGHT = "#FFF1A6"
@@ -341,7 +342,7 @@ class NotesPane(QWidget):
             ("H3", "h3", "三级标题 ⌘⌥3"),
             ("☷", "bullet", "无序列表 ⌘⇧8"),
             ("1≡", "number", "有序列表 ⌘⇧7"),
-            ("高亮", "highlight", "高亮 ==文字== · ⌘H"),
+            ("", "highlight", "高亮 ==文字== · ⌘H"),
             ("S", "strike", "删除线 ⌘⇧X"),
         )
         self.tools = {}
@@ -365,7 +366,10 @@ class NotesPane(QWidget):
                 font.setStrikeOut(True)
                 button.setFont(font)
             elif command == "highlight":
-                button.setStyleSheet("QToolButton {background:#FFF1A6;color:#5F5422;min-width:30px;}")
+                button.setIcon(QIcon(str(assets / "icons/highlight.svg")))
+                from PySide6.QtCore import QSize
+
+                button.setIconSize(QSize(22, 22))
             self.tools[command] = button
             row.addWidget(button)
         self.more = QToolButton()
@@ -373,12 +377,33 @@ class NotesPane(QWidget):
         self.more.setToolTip("更多笔记操作")
         self.more.setPopupMode(QToolButton.InstantPopup)
         self.menu = QMenu(self.more)
-        self.source_action = self.menu.addAction("查看源代码")
-        self.source_action.setCheckable(True)
+
+        def menu_action(text, callback=None, checkable=False):
+            action = QWidgetAction(self.menu)
+            action.setText(text)
+            action.setCheckable(checkable)
+            button = QPushButton(text)
+            button.setMinimumWidth(190)
+            button.setStyleSheet(
+                "QPushButton {text-align:left;padding:9px 12px;background:white;color:#233956;border:0;border-radius:6px;font-weight:400;} QPushButton:hover {background:#E6F0FF;}"
+            )
+            action.setDefaultWidget(button)
+            action.changed.connect(lambda: button.setText(action.text()))
+
+            def activate():
+                action.trigger()
+                self.menu.close()
+
+            button.clicked.connect(activate)
+            if callback:
+                action.triggered.connect(callback)
+            self.menu.addAction(action)
+            return action
+
+        self.source_action = menu_action("查看源代码", checkable=True)
         self.source_action.toggled.connect(self.toggle_source)
-        self.summary_action = self.menu.addAction("立刻 Summary")
-        self.summary_action.triggered.connect(self.summary_requested.emit)
-        self.menu.addAction("打开文件夹", self.open_folder)
+        self.summary_action = menu_action("立即整理", self.summary_requested.emit)
+        menu_action("打开文件夹", self.open_folder)
         self.more.setMenu(self.menu)
         row.addWidget(self.more)
         self.setStyleSheet(
