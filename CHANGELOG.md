@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.0 — local preview, unreleased
+## 2.3.0 — 2026-10-21
 
 - Replace the highlight text button with an original H / yellow marker icon. Left-align note menu actions and use “立即整理”.
 - Replace the Customize checkbox/frame with a collapsed “高级设置” disclosure. Enable automatic updates by default, preserving subsequent explicit opt-out.
@@ -8,7 +8,7 @@
 - Replace the final text tutorial with an input-blocking grey spotlight overlay, white arrows to actual controls, step counters, Next and Skip. Never activate capture from the tour.
 - Bind deferred caption/key-load timers to their widgets to prevent callbacks after window disposal.
 
-## 2.2.0 — local preview, unreleased
+## 2.2.0 — development preview, included in 2.3.0
 
 - Add short first-run teaching, source choice, one-action Apple setup and official Groq registration/key onboarding. Validate/save keys and prepare permissions in one flow, without capture.
 - Collapse detailed settings behind Customize; retain defaults and offer setup again from Settings/About.
@@ -18,7 +18,7 @@
 - Stop idle audio workers at shutdown and dispose GUI documents before Qt teardown.
 
 
-## 2.1.0 — local preview, unreleased
+## 2.1.0 — development preview, included in 2.3.0
 
 - Import UTF-8 Markdown as a continuation baseline; edit notes with snapshots and reject stale model overwrites.
 - End waits for final notes/revision then opens Save As, remembers the export directory and retains internal backups.

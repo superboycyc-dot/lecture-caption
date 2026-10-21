@@ -6,7 +6,7 @@ English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) �
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Local development preview 2.3.0 (public stable release: 2.0.0). Apple Silicon, macOS 14+. The original pipeline was exercised on an M5 Mac; full-length lectures, different microphones and conferencing apps still need broader testing. The app is ad-hoc signed, not Apple notarized.
+> Stable release **2.3.0** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. The app is ad-hoc signed, not Apple notarized.
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 
@@ -30,7 +30,7 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 1. Download the **macOS arm64 ZIP** from this repository's **Releases** page.
 2. Extract it and drag **Lecture Caption.app** to **Applications**.
 3. Open the app. If macOS blocks this unnotarized build, use the explicit Open Anyway flow in **System Settings → Privacy & Security**, after checking the release checksum and source.
-4. Get your own [Groq API key](https://console.groq.com/keys), open Settings and paste it, and select **测试 API**. Successful validation saves it to Keychain by default.
+4. Follow the first-run guide: connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
 5. Select your microphone or system audio, then start capture. Grant the relevant macOS permission when prompted.
 
 **Free application, quota-limited API.** Groq has a free tier; availability, model IDs and account quotas can change. This app cannot verify your billing plan and does not guarantee zero charges on a paid account. Check [your limits](https://console.groq.com/settings/limits) and [Groq documentation](https://console.groq.com/docs/rate-limits). No automatic fallback to a different paid provider is implemented.
