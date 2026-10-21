@@ -931,10 +931,14 @@ class Controls(QWidget):
                 self.error("当前模式需要 Groq API key。纯本地字幕请选择两项 Apple 并关闭自动笔记。")
                 return
             if self.lecture_ended:
-                self.engine.session_dir = None
-                self.engine.source_paragraphs.clear()
-                self.engine.last_revise = time.monotonic()
-                self.lecture_ended = False
+                if self.engine.notes_busy:
+                    self.status.setText("上一课备份仍在整理，请稍后开始新一课。")
+                    return
+                with self.engine.save_lock, self.engine.notes_lock:
+                    self.engine.session_dir = None
+                    self.engine.source_paragraphs.clear()
+                    self.engine.last_revise = time.monotonic()
+                    self.lecture_ended = False
             self.config_from_ui()
             self.engine.start(self.input.currentData())
             if self.engine.active:
