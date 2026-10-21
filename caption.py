@@ -385,7 +385,7 @@ class Controls(QWidget):
         self.status.setWordWrap(False)
         self.status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.status.setStyleSheet("font-size:11px;color:#8295AD;")
-        body.addWidget(self.status)
+        self.notes.layout().addWidget(self.status)
         footer = QHBoxLayout()
         self.quota = QLabel()
         self.quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
@@ -406,7 +406,7 @@ class Controls(QWidget):
         self.server_quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.server_quota.setStyleSheet("color:#6C829D;font-size:10px;")
         self.server_quota.setToolTip("最近一次 Groq 限额快照，不是费用余额或所有模型的实时总额度。")
-        body.addWidget(self.server_quota)
+        footer.insertWidget(1, self.server_quota, 2)
         self.build_settings(config)
         self.sig.status.connect(self.status.setText)
         self.sig.caption.connect(self.caption)
@@ -417,7 +417,7 @@ class Controls(QWidget):
         self.sig.tested.connect(self.tested)
         self.sig.credential_result.connect(self.credential_result)
         self.sig.level.connect(self.level.setValue)
-        self.sig.quota.connect(self.server_quota.setText)
+        self.sig.quota.connect(self.set_server_quota)
         self.quota_timer = QTimer(self)
         self.quota_timer.timeout.connect(self.refresh_quota)
         self.quota_timer.start(3000)
@@ -563,13 +563,16 @@ class Controls(QWidget):
         local_tr = self.translation_backend.currentData() == "apple"
         st = self.engine.usage.stats()
         self.quota.setText(
-            f"本机24h语音 API：{st['req_day']} 次 · {st['sec_day'] / 60:.1f} 分钟"
-            + ("  |  本地识别不消耗语音额度" if local_stt else "")
+            f"24h语音 API：{st['req_day']} 次 · {st['sec_day'] / 60:.1f} 分钟" + (" · 本地识别" if local_stt else "")
         )
         self.quota.setToolTip(
             "仅本机滚动24小时语音 API 统计，不含其他设备和文字模型；不是账号剩余额度。"
             + (" 当前翻译使用 Apple 本地。" if local_tr else "")
         )
+
+    def set_server_quota(self, message):
+        self.server_quota.setText(message)
+        self.server_quota.setToolTip(message + "\n最近响应快照，不是费用余额或所有模型的实时总额度。")
 
     def prepare_translation(self):
         from local_services import prepare_translation
