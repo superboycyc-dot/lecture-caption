@@ -2,6 +2,8 @@
 
 ## 2.3.0 — 2026-10-21
 
+- Update certifi to 2026.10.19, removing compromised emSign trust roots (GHSA-6q48-6c7w-9gw2).
+
 - Replace the highlight text button with an original H / yellow marker icon. Left-align note menu actions and use “立即整理”.
 - Replace the Customize checkbox/frame with a collapsed “高级设置” disclosure. Enable automatic updates by default, preserving subsequent explicit opt-out.
 - Make first-run setup Groq-first, preparing Apple backup resources in the same flow; only explicit Skip selects local captions with notes disabled. Apple preparation failure does not block Groq setup.
