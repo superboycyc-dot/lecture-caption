@@ -14,17 +14,32 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     for name, frameworks in [
         ("Keychain", ["Security"]),
+        ("LocalSpeech", ["Speech", "AVFoundation"]),
+        ("LocalTranslate", ["Translation", "SwiftUI", "AppKit"]),
         ("SystemAudio", ["ScreenCaptureKit", "CoreMedia", "AudioToolbox"]),
     ]:
         command = [
             "xcrun",
             "swiftc",
+            "-module-cache-path",
+            str(ROOT / "build/swift-cache"),
             "-target",
             "arm64-apple-macosx14.0",
             str(ROOT / "native" / f"{name}.swift"),
             "-o",
             str(output / name),
         ]
+        if name == "LocalSpeech":
+            command += [
+                "-Xlinker",
+                "-sectcreate",
+                "-Xlinker",
+                "__TEXT",
+                "-Xlinker",
+                "__info_plist",
+                "-Xlinker",
+                str(ROOT / "native/SpeechInfo.plist"),
+            ]
         for framework in frameworks:
             command += ["-framework", framework]
         subprocess.run(command, check=True)
