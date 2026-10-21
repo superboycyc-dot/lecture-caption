@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.4.0 — 2026-10-21
+## 2.0.0 — 2026-10-21
+
+- Use a pure white background throughout the notes pane, including the empty placeholder.
 
 - Enable generation-safe live input/recognition switching and epoch-safe translation-only switching without restarting capture.
 - Rewrite coherent notes from a cumulative source document plus prior notes; persist transcript.md with in-place paragraph revisions.
