@@ -2,6 +2,14 @@
 
 ## 0.4.0 — 2026-10-21
 
+- Enable generation-safe live input/recognition switching and epoch-safe translation-only switching without restarting capture.
+- Rewrite coherent notes from a cumulative source document plus prior notes; persist transcript.md with in-place paragraph revisions.
+- Add green/grey/error audio indicator and compact allowance/request counters; remove processing-time and duration clutter.
+- Make return-to-latest a small viewport overlay that auto-hides at the bottom without shrinking content.
+
+- Replace audio-chunk cards with borderless timestamped paragraphs, black source/blue translation on a light reading surface, and live current-paragraph emphasis.
+- Share cumulative utterance recognition and full-paragraph retranslation across Apple/Groq, revising the same paragraph until a natural pause (bounded at 24s). Preserve latest drafts on pause and queue each completed source for notes once.
+
 - Fix Apple local recognition on macOS 26 using SpeechAnalyzer instead of legacy dictation; add explicit in-app model preparation, compatible audio conversion and sanitized error codes. Verified with generated CS speech and Apple translation.
 
 - Move CI/release builds to supported macOS 26 runners; macOS 14 runner images retire November 2, 2026.

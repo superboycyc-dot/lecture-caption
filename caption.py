@@ -1,5 +1,5 @@
 from pathlib import Path
-import os, sys, json, threading, subprocess
+import os, sys, json, threading, subprocess, time, re
 from PySide6.QtCore import Qt, Signal, QObject, QTimer, QUrl, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut, QIcon, QPixmap
 from PySide6.QtWidgets import (
@@ -64,10 +64,12 @@ QToolTip { background:white; color:#233956; border:1px solid #D9E4F2; padding:6p
 
 class Signals(QObject):
     status = Signal(str)
-    caption = Signal(int, str, str)
+    caption = Signal(int, str, str, float, float)
     notes = Signal(str, str)
     error = Signal(str)
     capture_failed = Signal(str)
+    input_failed = Signal(int, str)
+    capture_state = Signal(int, str, str)
     note_status = Signal(str)
     level = Signal(int)
     quota = Signal(str)
@@ -82,6 +84,7 @@ class CaptionHistory(QWidget):
     def __init__(self):
         super().__init__()
         self.entries = {}
+        self.timestamps = {}
         self.current = -1
         self.font_size = 18
         self.display_mode = "bilingual"
@@ -92,22 +95,32 @@ class CaptionHistory(QWidget):
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
         content = QWidget()
+        content.setStyleSheet("background:#F3F7FC;")
         self.rows = QVBoxLayout(content)
-        self.rows.setContentsMargins(10, 10, 10, 10)
-        self.rows.setSpacing(12)
+        self.rows.setContentsMargins(22, 18, 22, 22)
+        self.rows.setSpacing(24)
         self.rows.addStretch()
         self.scroll.setWidget(content)
-        self.scroll.setStyleSheet("QScrollArea {background:#FFFFFF;border:1px solid #D9E4F2;border-radius:12px;}")
+        self.scroll.setStyleSheet(
+            "QScrollArea {background:#F3F7FC;border:0;} QScrollBar:vertical {background:transparent;} QScrollBar::handle:vertical {background:#BFCEE3;}"
+        )
         layout.addWidget(self.scroll)
-        self.latest = QPushButton("↓ 回到最新")
+        self.latest = QToolButton(self.scroll.viewport())
+        self.latest.setText("↓")
+        self.latest.setToolTip("回到最新")
+        self.latest.setAccessibleName("回到最新")
+        self.latest.setFixedSize(32, 32)
+        self.latest.setStyleSheet(
+            "QToolButton {background:#FFFFFF;color:#2877E1;border:1px solid #C5DDF9;border-radius:7px;font-size:20px;} QToolButton:hover {background:#E8F2FF;}"
+        )
         self.latest.clicked.connect(self.resume_follow)
         self.latest.hide()
-        layout.addWidget(self.latest, alignment=Qt.AlignRight)
         bar = self.scroll.verticalScrollBar()
         self.animation = QPropertyAnimation(bar, b"value", self)
         self.animation.setDuration(280)
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
-        bar.rangeChanged.connect(lambda *_: self.scroll_latest())
+        bar.rangeChanged.connect(self.on_range_changed)
+        bar.valueChanged.connect(self.on_scroll_position)
         bar.actionTriggered.connect(self.reader_scrolled)
         bar.sliderPressed.connect(self.reader_scrolled)
         self.scroll.viewport().installEventFilter(self)
@@ -117,12 +130,36 @@ class CaptionHistory(QWidget):
 
         if event.type() == QEvent.Wheel:
             self.reader_scrolled()
+        elif event.type() == QEvent.Resize:
+            self.position_latest()
         return super().eventFilter(watched, event)
 
     def reader_scrolled(self, *_):
         self.animation.stop()
         self.follow = False
-        self.latest.show()
+        QTimer.singleShot(0, self.on_scroll_position)
+
+    def on_range_changed(self, *_):
+        if self.follow:
+            self.scroll_latest()
+        else:
+            self.on_scroll_position()
+
+    def position_latest(self):
+        viewport = self.scroll.viewport()
+        self.latest.move(
+            max(8, viewport.width() - self.latest.width() - 14), max(8, viewport.height() - self.latest.height() - 14)
+        )
+
+    def on_scroll_position(self, *_):
+        bar = self.scroll.verticalScrollBar()
+        if bar.maximum() - bar.value() <= 4:
+            self.follow = True
+            self.latest.hide()
+        elif not self.follow:
+            self.position_latest()
+            self.latest.show()
+            self.latest.raise_()
 
     def resume_follow(self):
         self.follow = True
@@ -141,18 +178,15 @@ class CaptionHistory(QWidget):
     def style_entry(self, ident):
         frame, source, target = self.entries[ident]
         active = ident == self.current
-        frame.setStyleSheet(
-            "QFrame#captionCard {background:"
-            + ("#E8F2FF" if active else "#FFFFFF")
-            + ";border:1px solid "
-            + ("#78ADF3" if active else "#E0E9F4")
-            + ";border-radius:14px;}"
-        )
+        frame.setStyleSheet("QFrame {background:transparent;border:0;}")
         source.setVisible(self.display_mode != "chinese")
         target.setVisible(self.display_mode != "english")
-        source.setStyleSheet(f"font-size:{self.font_size - 2}px;color:#60738D;background:transparent;border:0;")
+        source.setStyleSheet(
+            f"font-size:{self.font_size}px;color:{'#1C1C1E' if active else '#3A3A3C'};"
+            f"font-weight:{600 if active else 400};background:transparent;border:0;"
+        )
         target.setStyleSheet(
-            f"font-size:{self.font_size}px;color:{'#165FC0' if active else '#344D6D'};"
+            f"font-size:{self.font_size}px;color:{'#1766D1' if active else '#397DC6'};"
             f"font-weight:{600 if active else 400};background:transparent;border:0;"
         )
 
@@ -167,16 +201,21 @@ class CaptionHistory(QWidget):
         for ident in self.entries:
             self.style_entry(ident)
 
-    def append(self, ident, original, translated):
-        if ident < self.current:
+    def append(self, ident, original, translated, started=None, ended=None):
+        if ident < self.current and (ident not in self.entries or original != self.entries[ident][1].text()):
             return
         previous = self.current
-        self.current = ident
+        self.current = max(self.current, ident)
         if ident not in self.entries:
             frame = QFrame()
-            frame.setObjectName("captionCard")
+            frame.setObjectName("captionParagraph")
             body = QVBoxLayout(frame)
-            body.setContentsMargins(16, 12, 16, 14)
+            body.setContentsMargins(0, 0, 0, 0)
+            body.setSpacing(7)
+            timestamp = QLabel()
+            timestamp.setStyleSheet("font-size:11px;color:#8795A8;background:transparent;border:0;")
+            self.timestamps[ident] = timestamp
+            body.addWidget(timestamp)
             source, target = QLabel(), QLabel()
             for label in (source, target):
                 label.setWordWrap(True)
@@ -187,7 +226,17 @@ class CaptionHistory(QWidget):
             self.rows.insertWidget(self.rows.count() - 1, frame)
         _, source, target = self.entries[ident]
         source.setText(original)
-        target.setText(translated)
+        if translated:
+            target.setText(translated)
+        elif not target.text():
+            target.setText("正在翻译…")
+        started = time.time() if started is None else started
+        ended = started if ended is None else ended
+        self.timestamps[ident].setText(
+            time.strftime("%H:%M:%S", time.localtime(started))
+            + " – "
+            + time.strftime("%H:%M:%S", time.localtime(ended))
+        )
         if previous in self.entries:
             self.style_entry(previous)
         self.style_entry(ident)
@@ -195,6 +244,7 @@ class CaptionHistory(QWidget):
         while len(self.entries) > 300:
             oldest = next(iter(self.entries))
             frame, _, _ = self.entries.pop(oldest)
+            self.timestamps.pop(oldest, None)
             self.rows.removeWidget(frame)
             frame.deleteLater()
         QTimer.singleShot(0, self.scroll_latest)
@@ -342,7 +392,9 @@ class Controls(QWidget):
         self.stt_backend = QComboBox()
         self.stt_backend.addItem("识别 · Groq", "cloud")
         self.stt_backend.addItem("识别 · 本地", "apple")
-        self.stt_backend.setToolTip("语音识别：Groq Whisper / Apple 本地英文识别（实验）")
+        self.stt_backend.setToolTip(
+            "语音识别：Groq Whisper / Apple 本地英文识别。连贯模式会持续重识别当前段落；Groq 模式的语音额度消耗相应增加。"
+        )
         self.stt_backend.setCurrentIndex(max(0, self.stt_backend.findData(config.get("stt_backend", "cloud"))))
         header.addWidget(self.stt_backend, 1)
         self.translation_backend = QComboBox()
@@ -392,6 +444,11 @@ class Controls(QWidget):
         self.quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.quota.setStyleSheet("color:#6C829D;font-size:11px;")
         footer.addWidget(self.quota, 1)
+        self.capture_indicator = QLabel("●")
+        self.capture_indicator.setFixedWidth(18)
+        self.capture_indicator.setAlignment(Qt.AlignCenter)
+        self.set_capture_indicator("idle")
+        footer.addWidget(self.capture_indicator)
         footer.addWidget(QLabel("音量"))
         self.level = QProgressBar()
         self.level.setRange(0, 100)
@@ -402,24 +459,30 @@ class Controls(QWidget):
         )
         footer.addWidget(self.level)
         body.addLayout(footer)
-        self.server_quota = QLabel("Groq 额度：等待服务端响应")
-        self.server_quota.setTextFormat(Qt.PlainText)
-        self.server_quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        self.server_quota.setStyleSheet("color:#6C829D;font-size:10px;")
-        self.server_quota.setToolTip("最近一次 Groq 限额快照，不是费用余额或所有模型的实时总额度。")
-        footer.insertWidget(1, self.server_quota, 2)
+        self.server_quota_text = ""
         self.build_settings(config)
-        self.sig.status.connect(self.status.setText)
+        self.sig.status.connect(self.on_status)
         self.sig.caption.connect(self.caption)
         self.sig.notes.connect(self.notes.update)
         self.sig.note_status.connect(self.notes.note_status)
         self.sig.error.connect(self.error)
         self.sig.capture_failed.connect(self.capture_failed)
+        self.sig.input_failed.connect(self.on_input_failed)
+        self.sig.capture_state.connect(self.on_capture_state)
         self.sig.tested.connect(self.tested)
         self.sig.credential_result.connect(self.credential_result)
-        self.sig.level.connect(self.level.setValue)
+        self.sig.level.connect(lambda value: self.level.setValue(value if self.engine.active else 0))
         self.sig.quota.connect(self.set_server_quota)
         self.sig.speech_ready.connect(self.speech_prepared)
+        self.switch_timer = QTimer(self)
+        self.switch_timer.setSingleShot(True)
+        self.switch_timer.setInterval(200)
+        self.switch_timer.timeout.connect(self.apply_live_selection)
+        for combo in (self.input, self.stt_backend, self.translation_backend, self.translation):
+            combo.currentIndexChanged.connect(self.schedule_live_selection)
+        self.translation.lineEdit().editingFinished.connect(self.schedule_live_selection)
+        self.note_model.currentIndexChanged.connect(self.apply_note_model)
+        self.note_model.lineEdit().editingFinished.connect(self.apply_note_model)
         self.quota_timer = QTimer(self)
         self.quota_timer.timeout.connect(self.refresh_quota)
         self.quota_timer.start(3000)
@@ -497,6 +560,9 @@ class Controls(QWidget):
         form.addRow("云端语音分段", self.interval)
         self.notes_on = QCheckBox("自动整理并保存 Markdown 笔记（Groq）")
         self.notes_on.setChecked(config.get("notes_enabled", True))
+        self.notes_on.setToolTip(
+            "启用后，以当前课堂累计原文、连续上下文和已有笔记发送给 Groq 整体整理。完整原文同时保存在本机 transcript.md。"
+        )
         form.addRow(self.notes_on)
         sensitivity = QSlider(Qt.Horizontal)
         sensitivity.setRange(1, 20)
@@ -536,25 +602,27 @@ class Controls(QWidget):
         self.settings.activateWindow()
 
     def save_preferences(self):
-        self.engine.config.update(
-            {
-                "stt_backend": self.stt_backend.currentData(),
-                "translation_backend": self.translation_backend.currentData(),
-                "translation_model": self.translation.currentText().strip(),
-                "notes_model": self.note_model.currentText().strip(),
-                "chunk_seconds": self.interval.currentData(),
-                "notes_enabled": self.notes_on.isChecked(),
-                "glossary": self.glossary.text().strip()[:500],
-                "threshold": round(self.engine.threshold * 1000),
-                "font_size": self.size.value(),
-                "display_mode": self.display.currentData(),
-                "opacity": self.opacity_slider.value(),
-            }
-        )
-        # Whitelist preferences: credentials are exclusively managed by Keychain.
-        data = {k: self.engine.config[k] for k in DEFAULTS}
+        desired = {
+            "stt_backend": self.stt_backend.currentData(),
+            "translation_backend": self.translation_backend.currentData(),
+            "translation_model": self.translation.currentText().strip(),
+            "notes_model": self.note_model.currentText().strip(),
+            "chunk_seconds": self.interval.currentData(),
+            "notes_enabled": self.notes_on.isChecked(),
+            "glossary": self.glossary.text().strip()[:500],
+            "threshold": round(self.engine.threshold * 1000),
+            "font_size": self.size.value(),
+            "display_mode": self.display.currentData(),
+            "opacity": self.opacity_slider.value(),
+        }
+        # Only apply pipeline preferences while capture is stopped. Active changes
+        # are coalesced into a generation-safe handoff by apply_live_selection.
+        if not self.engine.active:
+            self.engine.config.update(desired)
+        combined = {**self.engine.config, **desired}
+        data = {k: combined[k] for k in DEFAULTS}
         for k in ("notes_enabled", "glossary", "threshold", "font_size", "display_mode", "opacity"):
-            data[k] = self.engine.config[k]
+            data[k] = combined[k]
         temp = DATA_ROOT / "config.tmp"
         temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         temp.chmod(0o600)
@@ -564,20 +632,92 @@ class Controls(QWidget):
     def refresh_quota(self):
         if not hasattr(self, "stt_backend"):
             return
-        local_stt = self.stt_backend.currentData() == "apple"
-        local_tr = self.translation_backend.currentData() == "apple"
         st = self.engine.usage.stats()
+        remaining = re.search(r"当日请求剩余 (\d+(?: / \d+)?)", self.server_quota_text)
+        tokens = re.search(r"本分钟 token 剩余 (\d+(?: / \d+)?)", self.server_quota_text)
+        day = remaining.group(1) if remaining else "未取得"
         self.quota.setText(
-            f"24h语音 API：{st['req_day']} 次 · {st['sec_day'] / 60:.1f} 分钟" + (" · 本地识别" if local_stt else "")
+            f"Groq 当日余量：{day}  ·  本机24h语音请求：{st['req_day']} 次"
+            + (f"  ·  Token 余量：{tokens.group(1)}" if tokens else "")
         )
         self.quota.setToolTip(
-            "仅本机滚动24小时语音 API 统计，不含其他设备和文字模型；不是账号剩余额度。"
-            + (" 当前翻译使用 Apple 本地。" if local_tr else "")
+            (self.server_quota_text + "\n" if self.server_quota_text else "")
+            + "服务端限额为最近一次响应的模型快照；本机计数仅含语音 API，不含其他设备或文字模型。"
         )
 
     def set_server_quota(self, message):
-        self.server_quota.setText(message)
-        self.server_quota.setToolTip(message + "\n最近响应快照，不是费用余额或所有模型的实时总额度。")
+        self.server_quota_text = message
+        self.refresh_quota()
+
+    def set_capture_indicator(self, state, message=""):
+        self._capture_state = state
+        self.capture_indicator.setText("!" if state == "error" else "●")
+        color = {"recording": "#28A66B", "error": "#DF4545", "idle": "#A0A9B6"}[state]
+        self.capture_indicator.setStyleSheet(f"font-size:14px;font-weight:700;color:{color};background:transparent;")
+        self.capture_indicator.setToolTip(
+            message or {"recording": "正在收音", "error": "音频输入错误", "idle": "未收音"}[state]
+        )
+        self.capture_indicator.setAccessibleName(self.capture_indicator.toolTip())
+
+    def on_status(self, message):
+        if message.startswith("●"):
+            self.status.clear()
+        else:
+            self.status.setText(message)
+
+    def on_capture_state(self, generation, state, message):
+        if generation == self.engine.gen and self.engine.active:
+            self.set_capture_indicator(state, message)
+
+    def on_input_failed(self, generation, message):
+        if generation == self.engine.gen:
+            self.audio_input_failed(message)
+
+    def audio_input_failed(self, message):
+        self.capture_failed(message)
+        self.set_capture_indicator("error", message)
+
+    def apply_note_model(self, *_):
+        if self.engine.active:
+            self.engine.config["notes_model"] = self.note_model.currentText().strip()
+        self.save_preferences()
+
+    def schedule_live_selection(self, *_):
+        if self.engine.active:
+            self.switch_timer.start()
+
+    def apply_live_selection(self):
+        if not self.engine.active:
+            return
+        if (
+            self.stt_backend.currentData() == "cloud"
+            or self.translation_backend.currentData() == "cloud"
+            or self.notes_on.isChecked()
+        ) and not self.key.text().strip():
+            self.toggle()
+            self.show_settings()
+            self.error("已暂停。切换到 Groq 需要先填写 API key，然后点击继续。")
+            return
+        if (
+            self.engine.device == self.input.currentData()
+            and self.engine.config["stt_backend"] == self.stt_backend.currentData()
+        ):
+            self.engine.change_translation(
+                self.translation_backend.currentData(), self.translation.currentText().strip(), self.key.text().strip()
+            )
+            self.save_preferences()
+            return
+        previous = self.engine.latest_caption
+        self.engine.stop()
+        self.set_capture_indicator("idle")
+        self.config_from_ui()
+        self.engine.start(self.input.currentData())
+        if previous and self.engine.active:
+            from core import bounded_offer
+
+            bounded_offer(self.engine.translation_refresh, (self.engine.gen, previous[1], previous[2]))
+        self.paused = False
+        self.sync_capture_controls()
 
     def prepare_speech(self):
         from local_services import prepare_speech
@@ -718,6 +858,7 @@ class Controls(QWidget):
             self.credential_action("save")
 
     def toggle(self):
+        self.switch_timer.stop()
         if self.engine.active:
             self.engine.stop()
             self.paused = True
@@ -735,16 +876,18 @@ class Controls(QWidget):
             self.engine.start(self.input.currentData())
             if self.engine.active:
                 self.paused = False
+        self.sync_capture_controls()
+
+    def sync_capture_controls(self):
         active = self.engine.active
         self.start.setText("Ⅱ 暂停" if active else "▶ 继续" if self.paused else "▶ 开始")
         self.stop_button.setEnabled(active or self.paused)
         if not active:
             self.level.setValue(0)
+            if self._capture_state != "error":
+                self.set_capture_indicator("idle")
         for w in (
-            self.input,
             self.key,
-            self.translation,
-            self.note_model,
             self.glossary,
             self.interval,
             self.notes_on,
@@ -752,26 +895,26 @@ class Controls(QWidget):
             self.save_key_button,
             self.delete_key_button,
             self.remember_key,
-            self.stt_backend,
-            self.translation_backend,
             self.speech_prepare,
         ):
             w.setEnabled(not active)
 
     def stop_capture(self):
+        self.switch_timer.stop()
         if self.engine.active:
             self.toggle()
         self.paused = False
         self.start.setText("▶ 开始")
         self.stop_button.setEnabled(False)
         self.level.setValue(0)
+        self.set_capture_indicator("idle")
         self.status.setText("已停止 · 原文与笔记已保存；未完成的笔记整理可能继续。")
 
-    def caption(self, ident, text, translation):
-        if not self.engine.active or ident < self.current:
+    def caption(self, ident, text, translation, started=None, ended=None):
+        if not self.engine.active:
             return
-        self.current = ident
-        self.history.append(ident, text, translation)
+        self.current = max(self.current, ident)
+        self.history.append(ident, text, translation, started, ended)
 
     def error(self, message):
         QMessageBox.warning(self, "Lecture Caption", message)
@@ -811,13 +954,17 @@ if __name__ == "__main__":
         def capture_preview():
             main.history.append(
                 1,
-                "A binary search tree maintains an ordering invariant.",
-                "二叉搜索树保持有序性不变量（ordering invariant）。",
+                "A binary search tree maintains an ordering invariant. Its left subtree contains smaller keys and its right subtree contains larger keys.",
+                "二叉搜索树保持有序性不变量（ordering invariant）：左子树包含较小的键，右子树包含较大的键。",
+                time.time() - 18,
+                time.time() - 7,
             )
             main.history.append(
                 2,
-                "The running time depends on the height of the tree.",
-                "运行时间取决于树高。",
+                "The running time depends on the height of the tree, so balancing the tree helps us keep searches efficient.",
+                "运行时间取决于树高，因此保持树的平衡有助于提高查找效率。",
+                time.time() - 6,
+                time.time(),
             )
             main.notes.update(
                 "# 二叉搜索树\n\n## 核心定义\n\n- 左子树的键小于当前节点，右子树的键大于当前节点。\n\n## 时间复杂度\n\n- 查找代价取决于树高 $h$。\n\n> 界面示例，非真实课堂转写。",

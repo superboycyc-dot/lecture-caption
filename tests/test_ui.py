@@ -59,8 +59,11 @@ class UiTests(unittest.TestCase):
             self.assertFalse(hasattr(win, "pin_button"))
             self.assertEqual(win.status.parentWidget(), win.notes)
             self.assertEqual(win.quota.parentWidget(), win)
-            self.assertEqual(win.server_quota.parentWidget(), win)
-            self.assertEqual(win.quota.geometry().y(), win.server_quota.geometry().y())
+            win.set_server_quota("Groq 最近响应 · model · 当日请求剩余 100 / 200 · 本分钟 token 剩余 300 · 12:00:00")
+            self.assertIn("当日余量：100 / 200", win.quota.text())
+            self.assertIn("本机24h语音请求", win.quota.text())
+            self.assertNotIn("分钟", win.quota.text())
+            self.assertNotIn("12:00:00", win.quota.text())
             self.assertLess(abs(win.level.geometry().center().y() - win.quota.geometry().center().y()), 3)
             self.assertEqual(win.stt_backend.window(), win)
             self.assertEqual(win.translation_backend.window(), win)
@@ -100,10 +103,16 @@ class UiTests(unittest.TestCase):
         panel.append(1, "first", "第一句")
         self.assertEqual(len(panel.entries), 1)
         self.assertEqual(panel.entries[1][2].text(), "第一句")
+        panel.append(1, "first sentence continued", "", 100, 105)
+        self.assertEqual(panel.entries[1][2].text(), "第一句")
+        panel.append(1, "first", "第一句", 100, 110)
+        self.assertEqual(len(panel.entries), 1)
         panel.append(2, "second", "第二句")
         self.assertEqual(panel.current, 2)
-        self.assertIn("#E8F2FF", panel.entries[2][0].styleSheet())
-        self.assertNotIn("#E8F2FF", panel.entries[1][0].styleSheet())
+        self.assertNotIn("background:#FFFFFF", panel.entries[2][0].styleSheet())
+        self.assertIn("#1C1C1E", panel.entries[2][1].styleSheet())
+        self.assertIn(" – ", panel.timestamps[2].text())
+        self.assertIn("#3A3A3C", panel.entries[1][1].styleSheet())
         panel.set_display_mode("english")
         self.assertFalse(panel.entries[1][1].isHidden())
         self.assertTrue(panel.entries[1][2].isHidden())
@@ -113,13 +122,22 @@ class UiTests(unittest.TestCase):
         panel.set_display_mode("bilingual")
         self.assertFalse(panel.entries[1][1].isHidden())
         self.assertFalse(panel.entries[1][2].isHidden())
-        panel.reader_scrolled()
+        viewport_height = panel.scroll.viewport().height()
         for i in range(3, 25):
             panel.append(i, "a long sentence " * 8, "翻译内容" * 10)
+        self.wait(lambda: panel.scroll.verticalScrollBar().maximum() > 0)
+        panel.reader_scrolled()
+        panel.scroll.verticalScrollBar().setValue(0)
         self.wait()
         self.assertFalse(panel.follow)
         self.assertTrue(panel.latest.isVisible())
+        self.assertEqual(panel.latest.parentWidget(), panel.scroll.viewport())
+        self.assertEqual(panel.scroll.viewport().height(), viewport_height)
         self.assertEqual(panel.scroll.verticalScrollBar().value(), 0)
+        panel.scroll.verticalScrollBar().setValue(panel.scroll.verticalScrollBar().maximum())
+        self.app.processEvents()
+        self.assertTrue(panel.follow)
+        self.assertFalse(panel.latest.isVisible())
         panel.resume_follow()
         self.assertTrue(panel.follow)
         panel.append(1, "stale", "stale")
@@ -144,7 +162,7 @@ class UiTests(unittest.TestCase):
                 win.start.click()
                 self.assertTrue(win.engine.active)
                 self.assertIn("暂停", win.start.text())
-                self.assertFalse(win.input.isEnabled())
+                self.assertTrue(win.input.isEnabled())
                 win.start.click()
                 self.assertFalse(win.engine.active)
                 self.assertTrue(win.paused)
@@ -156,6 +174,70 @@ class UiTests(unittest.TestCase):
                 self.assertFalse(win.paused)
                 self.assertIn("开始", win.start.text())
                 self.assertTrue(win.input.isEnabled())
+            win.close()
+
+    def test_indicator_and_live_switch_coalescing(self):
+        with patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            self.assertEqual(win._capture_state, "idle")
+            win.engine.active = True
+            win.sig.capture_state.emit(win.engine.gen, "recording", "")
+            win.sig.status.emit("● 收音中")
+            self.assertEqual(win._capture_state, "recording")
+            self.assertEqual(win.status.text(), "")
+
+            def stop():
+                win.engine.active = False
+                win.engine.gen += 1
+
+            def start(device):
+                win.engine.active = True
+                win.engine.gen += 1
+                win.sig.capture_state.emit(win.engine.gen, "recording", "")
+
+            with (
+                patch.object(win.engine, "stop", side_effect=stop) as stop_mock,
+                patch.object(win.engine, "start", side_effect=start) as start_mock,
+            ):
+                win.stt_backend.setCurrentIndex(1 - win.stt_backend.currentIndex())
+                win.translation_backend.setCurrentIndex(1 - win.translation_backend.currentIndex())
+                win.input.addItem("Synthetic microphone", 999)
+                win.input.setCurrentIndex(win.input.count() - 1)
+                self.wait(lambda: start_mock.call_count == 1)
+                self.assertEqual(stop_mock.call_count, 1)
+                self.assertEqual(start_mock.call_args.args, (999,))
+                self.assertTrue(win.engine.active)
+                self.assertEqual(win._capture_state, "recording")
+                win.sig.capture_state.emit(win.engine.gen - 1, "error", "stale input warning")
+                win.sig.input_failed.emit(win.engine.gen - 1, "stale input failure")
+                self.assertEqual(win._capture_state, "recording")
+                self.assertTrue(win.engine.active)
+                self.assertTrue(win.input.isEnabled())
+                self.assertTrue(win.stt_backend.isEnabled())
+                self.assertTrue(win.translation_backend.isEnabled())
+                with patch.object(win, "error"):
+                    win.audio_input_failed("Synthetic device disconnected")
+                self.assertEqual(win.capture_indicator.text(), "!")
+                self.assertEqual(win._capture_state, "error")
+                win.stop_capture()
+                self.assertEqual(win._capture_state, "idle")
+            win.close()
+
+    def test_translation_switch_keeps_input_open(self):
+        with patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            win.engine.active = True
+            win.engine.device = win.input.currentData()
+            win.engine.config["stt_backend"] = win.stt_backend.currentData()
+            with patch.object(win.engine, "stop") as stop, patch.object(win.engine, "start") as start:
+                win.translation_backend.setCurrentIndex(1 - win.translation_backend.currentIndex())
+                self.wait(lambda: not win.switch_timer.isActive())
+                stop.assert_not_called()
+                start.assert_not_called()
+                self.assertEqual(win.engine.config["translation_backend"], win.translation_backend.currentData())
+            win.engine.active = False
             win.close()
 
     def test_pure_local_start_does_not_require_api_key(self):

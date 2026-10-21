@@ -18,7 +18,7 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 - **One workspace:** notes left, caption history right; current segment highlighting, animated scroll, manual history browsing and return-to-latest. Settings open only when requested.
 - **Main-window controls:** Start/Stop, input source, live audio meter, clearly labeled local speech-API accounting. Opacity lives in Settings.
 - **Apple local captions:** optional on-device English recognition and English-to-Chinese translation (macOS 15+, installed language resources). With automatic notes off, no API key is needed. No silent cloud fallback.
-- **Live study notes:** incremental Chinese Markdown, normally every 45 seconds, emphasizing definitions, assumptions, arguments, algorithms and complexity.
+- **Live study notes:** continuously revised Chinese Markdown, normally every 45 seconds, emphasizing definitions, assumptions, arguments, algorithms and complexity.
 - **CS/math terminology:** supply course terms; uncertain formula details are explicitly requested to be marked for checking.
 - **macOS Keychain:** save your API key once; reload it at startup. No key in ordinary config or command arguments.
 - **Durable text:** local Markdown and transcript events; unfinished notes retain their source text. No raw audio is saved.
@@ -41,7 +41,7 @@ Open Settings, choose Apple Speech and Apple Translate, and click **准备 Apple
 
 ## What to expect
 
-Captions are **chunked near-real-time**, not word-by-word simultaneous interpretation. Cloud default maximum chunk length is 8 seconds; Apple recognition uses roughly 2–3 second chunks, plus processing latency. Translation calls and speech calls are processed in order. Notes are updated separately.
+Captions are **chunked near-real-time**, not word-by-word simultaneous interpretation. Cloud previews normally update every 8 seconds and Apple previews every 3 seconds, plus processing latency. Both revise the current utterance until a pause, with a 24-second bound for continuous speech. Translation calls and speech calls are processed in order. Notes are updated separately.
 
 The app hears audio only: it cannot infer unwritten/unspoken board content. ASR and notes can be wrong, especially for notation, subscripts, proofs and code. The built-in Markdown view preserves LaTeX source but does not typeset math; open the `.md` in a math-aware editor if needed.
 
@@ -57,6 +57,7 @@ Local files live in:
 ├── logs/
 └── sessions/<date-time>/
     ├── notes.md
+    ├── transcript.md              # cumulative, revised source document
     └── transcript.jsonl           # original and translation update events
 ```
 
@@ -106,3 +107,9 @@ When Groq returns rate-limit headers, the main window also displays the latest s
 The compact toolbar includes input, recognition/translation backends, English/Chinese/bilingual presentation, Start/Pause, Stop and a settings icon. Audio level and usage live at the bottom. Note hints disappear on first content; refresh/folder icons remain inside the pane. Right-click notes to switch Markdown source/read view. Caption language selection changes presentation only, retaining translations in the transcript.
 
 On macOS 26+, local recognition uses SpeechAnalyzer/SpeechTranscriber with explicit AssetInventory preparation. Use **准备 Apple 英文语音资源** in app Settings if assets are missing; toggling system Dictation is not sufficient for this engine. Older macOS uses the legacy on-device Speech API. Synthetic CS audio was verified through the native segment/recognition/Apple-translation pipeline without a cloud request; real classroom microphone accuracy still needs user verification.
+
+Coherent captions now use borderless timestamped paragraphs: black source and blue translation on a light surface, with current-paragraph emphasis. Both Apple and Groq periodically re-recognize cumulative utterance audio and retranslate the complete current text, revising the same paragraph until a natural pause (bounded at 24 seconds for continuous speech). Previous translations remain visible while an update is pending. Notes consume completed paragraphs once; pausing preserves the last recognized draft. Repeated cumulative audio consumes more Groq speech quota than independent slices. Time ranges are approximate capture spans, not word alignment.
+
+Live selectors remain enabled during capture. Translation-only switches keep capture and ASR running and retranslate the current paragraph; source/ASR switches save the latest recognized draft, reconnect input and discard stale-generation results. Unrecognized tail audio may be lost during input reconnection and is marked. The level indicator is green while capturing, grey when idle and a red exclamation on device errors. Daily API allowance sits beside locally counted 24h speech requests, without duration/processing-time clutter. Return-to-latest is a 32px viewport overlay: appears when browsing older text and disappears at the bottom without resizing content.
+
+Notes now revise one coherent document, backed by a cumulative transcript.md. Long lectures send the full previous note document, about 18000 characters of recent whole transcript paragraphs, and all unprocessed text; the complete original stays on disk. Enabling notes sends this accumulated context, including earlier locally recorded content in the current lecture, to the configured notes API.

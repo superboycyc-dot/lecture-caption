@@ -75,11 +75,11 @@ class LocalTests(unittest.TestCase):
             engine.api = Mock()
             engine.active, engine.gen = True, 1
             engine.ensure_session()
-            engine.chunks.put((1, 1, np.ones(48000, dtype=np.float32) * 0.1, time.monotonic()))
+            engine.chunks.put((1, core.Utterance(1, 1, np.ones(48000, dtype=np.float32) * 0.1, 100, 103, True)))
             deadline = time.monotonic() + 2
             while len(sig.caption.items) < 2 and time.monotonic() < deadline:
                 time.sleep(0.01)
-            self.assertEqual(sig.caption.items[-1], (1, "An invariant is preserved.", "不变量得以保持。"))
+            self.assertEqual(sig.caption.items[-1][:3], (1, "An invariant is preserved.", "不变量得以保持。"))
             engine.api.transcribe.assert_not_called()
             engine.api.chat.assert_not_called()
             self.assertEqual(engine.usage.stats()["req_day"], 0)
@@ -101,7 +101,7 @@ class LocalTests(unittest.TestCase):
             engine.api = Mock()
             engine.active, engine.gen = True, 1
             engine.ensure_session()
-            engine.chunks.put((1, 1, np.ones(16000, dtype=np.float32), time.monotonic()))
+            engine.chunks.put((1, core.Utterance(1, 1, np.ones(16000, dtype=np.float32), 100, 101, True)))
             deadline = time.monotonic() + 2
             while not sig.capture_failed.items and time.monotonic() < deadline:
                 time.sleep(0.01)

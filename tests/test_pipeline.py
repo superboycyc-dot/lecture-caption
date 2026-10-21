@@ -27,7 +27,17 @@ class Event:
 
 class Signals:
     def __init__(self):
-        for name in ("status", "error", "capture_failed", "level", "caption", "notes", "note_status"):
+        for name in (
+            "status",
+            "error",
+            "capture_failed",
+            "level",
+            "caption",
+            "notes",
+            "note_status",
+            "capture_state",
+            "input_failed",
+        ):
             setattr(self, name, Event())
 
 
@@ -154,7 +164,7 @@ class NotesTests(unittest.TestCase):
             engine.active = True
             engine.gen = 1
             engine.ensure_session()
-            engine.chunks.put((1, 1, np.ones(16000, dtype=np.float32) * 0.1, time.monotonic()))
+            engine.chunks.put((1, core.Utterance(1, 1, np.ones(16000, dtype=np.float32) * 0.1, 100, 101, True)))
             path = engine.session_dir / "notes.md"
             until = time.monotonic() + 3
             while "Binary search" not in path.read_text() and time.monotonic() < until:
@@ -173,3 +183,40 @@ class NotesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InputStateTests(unittest.TestCase):
+    def test_microphone_open_failure_reports_current_generation(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(core, "DATA_ROOT", Path(tmp)),
+            patch.object(core.sd, "query_devices", side_effect=RuntimeError("synthetic unavailable device")),
+        ):
+            sig = Signals()
+            engine = core.Engine(sig, {"notes_interval": 3600})
+            engine.api = Mock()
+            engine.start(999)
+            self.assertFalse(engine.active)
+            self.assertEqual(sig.input_failed.items[0][0], engine.gen)
+            self.assertIn("收音启动失败", sig.input_failed.items[0][1])
+            engine.shutdown = True
+            engine.force_notes.set()
+
+    def test_intentional_stop_does_not_report_device_failure(self):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(core, "DATA_ROOT", Path(tmp)),
+            patch.object(core.sd, "query_devices", return_value={"default_samplerate": 16000}),
+            patch.object(core.sd, "InputStream") as stream,
+        ):
+            sig = Signals()
+            engine = core.Engine(sig, {"notes_interval": 3600})
+            engine.api = Mock()
+            engine.start(1)
+            finished = stream.call_args.kwargs["finished_callback"]
+            self.assertEqual(sig.capture_state.items[-1], (engine.gen, "recording", ""))
+            engine.stop()
+            finished()
+            self.assertEqual(sig.input_failed.items, [])
+            engine.shutdown = True
+            engine.force_notes.set()
