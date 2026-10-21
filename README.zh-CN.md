@@ -52,3 +52,5 @@
 笔记与日志位于 `~/Library/Application Support/Lecture Caption/`；笔记窗口可直接打开文件夹。云端模式的音频与转写会发送至你配置的 API；Apple 识别/翻译在本机完成，但开启自动笔记仍会把原文发送给 Groq，详见 [隐私说明](docs/PRIVACY.md)。
 
 开发、测试、构建及许可证见 [英文 README](README.md)。欢迎通过 Issues 提交可复现问题；不要上传密钥或私人课堂录音。
+
+Groq 请求返回限额响应头时，主界面还会显示最近一次服务端剩余请求/Token 快照，标明模型和时间；它不是费用余额，也不代表所有模型的实时总额度。

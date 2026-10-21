@@ -65,6 +65,20 @@ class AudioTests(unittest.TestCase):
 
 
 class ApiTests(unittest.TestCase):
+    def test_quota_uses_numeric_provider_headers_only(self):
+        self.assertEqual(core.groq_quota_message({"x-ratelimit-remaining-requests": "private-key"}, "model"), "")
+        message = core.groq_quota_message(
+            {
+                "x-ratelimit-remaining-requests": "125",
+                "x-ratelimit-limit-requests": "1000",
+                "x-ratelimit-remaining-tokens": "500",
+            },
+            "synthetic-model",
+        )
+        self.assertIn("当日请求剩余 125 / 1000", message)
+        self.assertIn("本分钟 token 剩余 500", message)
+        self.assertIn("synthetic-model", message)
+
     def test_credentials_and_server_body_not_echoed_on_errors(self):
         api = core.Cloud("synthetic-secret", core.DEFAULTS)
         for status in (401, 403, 429, 500):

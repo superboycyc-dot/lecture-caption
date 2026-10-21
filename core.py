@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import sys, os, time, queue, threading, subprocess, json, math
+from urllib.parse import urlparse
 import numpy as np
 import requests
 from scipy.signal import resample_poly
@@ -57,11 +58,30 @@ def bounded_offer(q, item):
     return dropped
 
 
+def groq_quota_message(headers, model):
+    """Only display numeric provider headers, never response bodies or credentials."""
+    parts = []
+    for header, label in (("requests", "当日请求剩余"), ("tokens", "本分钟 token 剩余")):
+        value = headers.get("x-ratelimit-remaining-" + header)
+        limit = headers.get("x-ratelimit-limit-" + header)
+        if isinstance(value, str) and value.isascii() and value.isdigit() and len(value) <= 12:
+            total = (
+                f" / {limit}"
+                if isinstance(limit, str) and limit.isascii() and limit.isdigit() and len(limit) <= 12
+                else ""
+            )
+            parts.append(label + " " + value + total)
+    if not parts:
+        return ""
+    return f"Groq 最近响应 · {str(model)[:80]} · " + " · ".join(parts) + " · " + time.strftime("%H:%M:%S")
+
+
 class Cloud:
-    def __init__(self, key, config):
+    def __init__(self, key, config, on_quota=None):
         self.key = key
         self.config = config
         self.session = requests.Session()
+        self.on_quota = on_quota
 
     def post(self, base, path, **kwargs):
         try:
@@ -70,6 +90,11 @@ class Cloud:
             )
         except requests.RequestException:
             raise ApiError("网络连接失败或超时；本段未自动重试") from None
+        if self.on_quota and urlparse(base).hostname == "api.groq.com":
+            model = (kwargs.get("json") or kwargs.get("data") or {}).get("model", "")
+            message = groq_quota_message(r.headers, model)
+            if message:
+                self.on_quota(message)
         if r.status_code == 429:
             raise ApiError("免费 API 限流/额度不足（429）；请稍后继续，检查 Groq Limits。不会自动切到付费服务")
         if r.status_code in (401, 403):
@@ -151,7 +176,7 @@ class Engine:
             threading.Thread(target=target, daemon=True).start()
 
     def configure(self, key):
-        self.api = Cloud(key, self.config)
+        self.api = Cloud(key, self.config, self.sig.quota.emit if hasattr(self.sig, "quota") else None)
 
     def ensure_session(self):
         if self.session_dir:

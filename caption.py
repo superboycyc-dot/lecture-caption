@@ -66,6 +66,7 @@ class Signals(QObject):
     capture_failed = Signal(str)
     note_status = Signal(str)
     level = Signal(int)
+    quota = Signal(str)
     tested = Signal(bool, str)
     credential_result = Signal(str, bool, str)
 
@@ -394,6 +395,14 @@ class Controls(WindowOptions, QWidget):
         self.quota.setWordWrap(True)
         self.quota.setStyleSheet("color:#6C829D;font-size:11px;")
         body.addWidget(self.quota)
+        self.server_quota = QLabel("Groq 服务端额度：尚未取得响应；纯本地字幕不消耗 API。")
+        self.server_quota.setTextFormat(Qt.PlainText)
+        self.server_quota.setWordWrap(True)
+        self.server_quota.setStyleSheet("color:#6C829D;font-size:11px;")
+        self.server_quota.setToolTip(
+            "显示最近一次 Groq 响应中的请求/Token 限额快照，不是费用余额或持续同步的账号总额度。"
+        )
+        body.addWidget(self.server_quota)
         self.build_settings(config)
         self.sig.status.connect(self.status.setText)
         self.sig.caption.connect(self.caption)
@@ -404,6 +413,7 @@ class Controls(WindowOptions, QWidget):
         self.sig.tested.connect(self.tested)
         self.sig.credential_result.connect(self.credential_result)
         self.sig.level.connect(self.level.setValue)
+        self.sig.quota.connect(self.server_quota.setText)
         self.quota_timer = QTimer(self)
         self.quota_timer.timeout.connect(self.refresh_quota)
         self.quota_timer.start(3000)
