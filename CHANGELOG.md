@@ -2,6 +2,8 @@
 
 ## 0.4.0 — 2026-10-21
 
+- Move CI/release builds to supported macOS 26 runners; macOS 14 runner images retire November 2, 2026.
+
 - One resizable workspace: notes left, bilingual transcript right; settings open on demand.
 - Persistent caption cards, current-segment highlighting, animated follow, pause-follow while reading history. Last 300 cards remain in memory; full transcript stays on disk.
 - Dedicated Start/Stop, input selector, live audio meter and labeled local speech-API usage on the main window.
