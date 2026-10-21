@@ -33,17 +33,24 @@ class UiTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def wait(self):
-        until = time.monotonic() + 0.1
+    def wait(self, predicate=None):
+        # Cold CI font initialization can consume the first event-loop pass.
+        # Wait for the asynchronous state, rather than assuming a 100ms timer.
+        until = time.monotonic() + 5
+        passes = 0
         while time.monotonic() < until:
             self.app.processEvents()
+            passes += 1
+            if (predicate is not None and predicate()) or (predicate is None and passes >= 30):
+                return
             time.sleep(0.005)
+        self.fail("Timed out waiting for UI state")
 
     def test_compact_workspace_opacity_and_credential_lifecycle(self):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
             win.show()
-            self.wait()
+            self.wait(lambda: win.key.text() == "synthetic-test-key")
             self.assertEqual(win.key.text(), "synthetic-test-key")
             self.assertEqual(win.key.echoMode(), QLineEdit.Password)
             self.assertFalse(win.settings.isVisible())
@@ -68,10 +75,10 @@ class UiTests(unittest.TestCase):
             self.assertTrue(win.notes.status.isHidden() or not win.notes.status.isVisible())
             win.key.setText("synthetic-replacement")
             win.tested(True, "success")
-            self.wait()
+            self.wait(lambda: not win.credential_busy)
             self.assertEqual(win.credentials.value, "synthetic-replacement")
             win.credential_action("delete")
-            self.wait()
+            self.wait(lambda: not win.credential_busy)
             self.assertEqual(win.key.text(), "")
             self.assertFalse(win.remember_key.isChecked())
             win.save_preferences()
