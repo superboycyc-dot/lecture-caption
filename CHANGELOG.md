@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0 — local preview, unreleased
+
+- Import UTF-8 Markdown as a continuation baseline; edit notes with snapshots and reject stale model overwrites.
+- End waits for final notes/revision then opens Save As, remembers the export directory and retains internal backups.
+- Automatically reorganize whole notes and generate a topic title every 1–5 minutes (default 3); no manual revise action.
+- Click the logo for version, Yichen Chen developer/contact information, repository and update links. Official-release checking/download defaults on, with checksum/bundle validation, idle installation and macOS permission handling.
+
+
 ## 2.0.0 — 2026-10-21
 
 - Use a pure white background throughout the notes pane, including the empty placeholder.

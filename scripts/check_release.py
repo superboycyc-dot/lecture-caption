@@ -38,6 +38,7 @@ def main():
         "native/LocalTranslate.swift",
         "local_services.py",
         "utterances.py",
+        "updater.py",
         "docs/releases/v" + version + ".md",
         "licenses/LGPL-3.0.txt",
         "licenses/GPL-3.0.txt",

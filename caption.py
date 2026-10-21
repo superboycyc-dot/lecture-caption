@@ -28,11 +28,13 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QSizePolicy,
     QMenu,
+    QFileDialog,
 )
 from core import ROOT, ASSET_ROOT, DATA_ROOT, Engine, DEFAULTS
 import sounddevice as sd
 import requests
 from credentials import CredentialStore
+import updater
 
 
 LIGHT_STYLE = """
@@ -66,6 +68,8 @@ class Signals(QObject):
     status = Signal(str)
     caption = Signal(int, str, str, float, float)
     notes = Signal(str, str)
+    finished = Signal(bool, str)
+    update_result = Signal(object, str)
     error = Signal(str)
     capture_failed = Signal(str)
     input_failed = Signal(int, str)
@@ -275,6 +279,10 @@ class NotesPane(QWidget):
         body.setContentsMargins(10, 6, 10, 8)
         body.setSpacing(0)
         row = QHBoxLayout()
+        self.import_button = icon_button("import", "导入 Markdown 续课笔记", lambda: None)
+        self.edit_button = icon_button("edit", "编辑当前笔记", lambda: None)
+        row.addWidget(self.import_button)
+        row.addWidget(self.edit_button)
         row.addStretch()
         self.update_button = icon_button("refresh", "立即整理笔记", self.engine.force_notes.set)
         self.folder_button = icon_button("folder", "打开笔记文件夹", self.open_folder)
@@ -370,13 +378,23 @@ class Controls(QWidget):
         body.setContentsMargins(12, 10, 12, 8)
         body.setSpacing(8)
         self.paused = False
+        self.finishing = False
+        self.lecture_ended = False
+        self.last_export_dir = config.get("last_export_dir", str(Path.home() / "Documents"))
+        self.staged_update = None
+        self.update_busy = False
+        self.about = None
+        self.editor = None
         header = QHBoxLayout()
         header.setSpacing(7)
-        icon = QLabel()
-        icon.setToolTip("Lecture Caption")
-        icon.setPixmap(
-            QPixmap(str(ASSET_ROOT / "AppIcon.png")).scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        )
+        icon = QToolButton()
+        icon.setToolTip("关于 Lecture Caption 与软件更新")
+        icon.setIcon(QIcon(str(ASSET_ROOT / "AppIcon.png")))
+        from PySide6.QtCore import QSize
+
+        icon.setIconSize(QSize(34, 34))
+        icon.setStyleSheet("QToolButton {background:transparent;border:0;}")
+        icon.clicked.connect(self.show_about)
         header.addWidget(icon)
         self.input = QComboBox()
         self.input.setToolTip("音源：选择麦克风或电脑内部音频")
@@ -422,7 +440,7 @@ class Controls(QWidget):
         self.start.setObjectName("primary")
         self.start.setMinimumWidth(76)
         self.start.clicked.connect(self.toggle)
-        self.stop_button = QPushButton("■ 停止")
+        self.stop_button = QPushButton("■ 结束")
         self.stop_button.setMinimumWidth(76)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_capture)
@@ -468,6 +486,10 @@ class Controls(QWidget):
         self.sig.status.connect(self.on_status)
         self.sig.caption.connect(self.caption)
         self.sig.notes.connect(self.notes.update)
+        self.sig.finished.connect(self.finish_ready)
+        self.sig.update_result.connect(self.update_received)
+        self.notes.import_button.clicked.connect(self.import_notes)
+        self.notes.edit_button.clicked.connect(self.edit_notes)
         self.sig.note_status.connect(self.notes.note_status)
         self.sig.error.connect(self.error)
         self.sig.capture_failed.connect(self.capture_failed)
@@ -496,6 +518,12 @@ class Controls(QWidget):
         QShortcut(QKeySequence("Meta+,"), self, activated=self.show_settings)
         QShortcut(QKeySequence("Meta+Q"), self, activated=self.close)
         QTimer.singleShot(0, lambda: self.credential_action("load"))
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(6 * 60 * 60 * 1000)
+        self.update_timer.timeout.connect(self.automatic_update)
+        self.update_timer.start()
+        if not os.environ.get("LECTURE_CAPTION_NO_UPDATE") and "--preview" not in sys.argv:
+            QTimer.singleShot(2000, self.automatic_update)
 
     def build_settings(self, config):
         self.settings = QDialog(self)
@@ -568,6 +596,18 @@ class Controls(QWidget):
             "启用后，以当前课堂累计原文、连续上下文和已有笔记发送给 Groq 整体整理。完整原文同时保存在本机 transcript.md。"
         )
         form.addRow(self.notes_on)
+        self.revise_interval = QComboBox()
+        for minutes in range(1, 6):
+            self.revise_interval.addItem(f"每 {minutes} 分钟", minutes * 60)
+        self.revise_interval.setCurrentIndex(max(0, self.revise_interval.findData(config.get("revise_interval", 180))))
+        self.revise_interval.currentIndexChanged.connect(
+            lambda: self.engine.config.update(revise_interval=self.revise_interval.currentData())
+        )
+        form.addRow("自动二次整理与命名", self.revise_interval)
+        self.auto_update = QCheckBox("自动更新（自动检查和下载，空闲时安装）")
+        self.auto_update.setChecked(config.get("auto_update", True))
+        self.auto_update.setToolTip("启动及每6小时检查官方 GitHub；有课堂笔记或录音时不会自动重启。")
+        form.addRow(self.auto_update)
         sensitivity = QSlider(Qt.Horizontal)
         sensitivity.setRange(1, 20)
         sensitivity.setValue(int(config.get("threshold", 4)))
@@ -618,6 +658,9 @@ class Controls(QWidget):
             "font_size": self.size.value(),
             "display_mode": self.display.currentData(),
             "opacity": self.opacity_slider.value(),
+            "revise_interval": self.revise_interval.currentData(),
+            "last_export_dir": self.last_export_dir,
+            "auto_update": self.auto_update.isChecked(),
         }
         # Only apply pipeline preferences while capture is stopped. Active changes
         # are coalesced into a generation-safe handoff by apply_live_selection.
@@ -625,7 +668,16 @@ class Controls(QWidget):
             self.engine.config.update(desired)
         combined = {**self.engine.config, **desired}
         data = {k: combined[k] for k in DEFAULTS}
-        for k in ("notes_enabled", "glossary", "threshold", "font_size", "display_mode", "opacity"):
+        for k in (
+            "notes_enabled",
+            "glossary",
+            "threshold",
+            "font_size",
+            "display_mode",
+            "opacity",
+            "last_export_dir",
+            "auto_update",
+        ):
             data[k] = combined[k]
         temp = DATA_ROOT / "config.tmp"
         temp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -862,6 +914,8 @@ class Controls(QWidget):
             self.credential_action("save")
 
     def toggle(self):
+        if self.finishing:
+            return
         self.switch_timer.stop()
         if self.engine.active:
             self.engine.stop()
@@ -876,6 +930,11 @@ class Controls(QWidget):
                 self.show_settings()
                 self.error("当前模式需要 Groq API key。纯本地字幕请选择两项 Apple 并关闭自动笔记。")
                 return
+            if self.lecture_ended:
+                self.engine.session_dir = None
+                self.engine.source_paragraphs.clear()
+                self.engine.last_revise = time.monotonic()
+                self.lecture_ended = False
             self.config_from_ui()
             self.engine.start(self.input.currentData())
             if self.engine.active:
@@ -904,15 +963,203 @@ class Controls(QWidget):
             w.setEnabled(not active)
 
     def stop_capture(self):
+        if self.editor:
+            self.error("请先保存修改并关闭笔记编辑窗口，再结束课程。")
+            return
+        if self.finishing:
+            return
         self.switch_timer.stop()
-        if self.engine.active:
-            self.toggle()
+        self.finishing = True
         self.paused = False
-        self.start.setText("▶ 开始")
+        self.start.setEnabled(False)
         self.stop_button.setEnabled(False)
-        self.level.setValue(0)
+        self.config_from_ui()
+        self.engine.finish()
         self.set_capture_indicator("idle")
-        self.status.setText("已停止 · 原文与笔记已保存；未完成的笔记整理可能继续。")
+        self.sync_capture_controls()
+        self.stop_button.setEnabled(False)
+        self.status.setText("正在完成最后整理并保留备份，随后选择另存位置…")
+
+    def finish_ready(self, ok, path):
+        self.finishing = False
+        self.lecture_ended = True
+        self.start.setEnabled(True)
+        self.sync_capture_controls()
+        if not ok:
+            self.status.setText("部分内容未整理成功，原文和已有笔记仍在备份中。")
+        else:
+            self.status.setText("整理完成，备份已保存。")
+        if not path:
+            return
+        title = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", self.engine.note_title).strip(" .")[:60] or "课程笔记"
+        destination, _ = QFileDialog.getSaveFileName(
+            self,
+            "另存本次课程笔记（应用内备份仍保留）",
+            str(Path(self.last_export_dir) / (title + ".md")),
+            "Markdown (*.md)",
+        )
+        if destination:
+            try:
+                target = Path(destination)
+                if target.suffix.lower() != ".md":
+                    target = target.with_name(target.name + ".md")
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".lecture-", delete=False) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(Path(path).read_bytes())
+                try:
+                    temporary.replace(target)
+                finally:
+                    temporary.unlink(missing_ok=True)
+                self.last_export_dir = str(target.parent)
+                self.save_preferences()
+                self.status.setText("笔记已另存；应用内备份仍保留。")
+            except OSError:
+                self.error("另存失败，请检查目录权限。应用内备份仍安全保留。")
+
+    def import_notes(self):
+        if self.finishing or self.editor:
+            self.error("请先完成整理或关闭笔记编辑窗口。")
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "导入 Markdown 作为续课基础", "", "Markdown (*.md *.markdown)")
+        if not path:
+            return
+        try:
+            source = Path(path)
+            if source.stat().st_size > 2_000_000:
+                raise ValueError("文件超过 2 MB，请拆分后导入")
+            self.engine.replace_document(source.read_text(encoding="utf-8-sig"))
+            self.status.setText("已导入续课笔记；原文件未修改。自动笔记开启后会发送此基础笔记用于整理。")
+        except (OSError, ValueError):
+            self.error("导入失败：请选择 UTF-8 Markdown，大小不超过 2 MB。")
+
+    def edit_notes(self):
+        if self.finishing:
+            return
+        if self.editor:
+            self.editor.raise_()
+            return
+        dialog = self.editor = QDialog(self)
+        dialog.setWindowTitle("编辑 Markdown 笔记")
+        dialog.resize(760, 640)
+        layout = QVBoxLayout(dialog)
+        edit = QPlainTextEdit()
+        with self.engine.notes_lock:
+            edit.setPlainText("\n\n".join(self.engine.sections))
+        layout.addWidget(edit)
+        save = QPushButton("保存修改")
+        layout.addWidget(save)
+
+        def commit():
+            try:
+                self.engine.replace_document(edit.toPlainText())
+                dialog.accept()
+            except (OSError, ValueError):
+                self.error("保存失败，请检查笔记大小和目录权限。")
+
+        save.clicked.connect(commit)
+        dialog.finished.connect(lambda _: setattr(self, "editor", None))
+        dialog.show()
+
+    def show_about(self):
+        if self.about is None:
+            self.about = QDialog(self)
+            self.about.setWindowTitle("关于 Lecture Caption")
+            self.about.resize(460, 300)
+            layout = QVBoxLayout(self.about)
+            label = QLabel(
+                f"<b>Lecture Caption {updater.current_version()}</b><br>开发者：Yichen Chen<br>"
+                '<a href="mailto:superboycyc@gmail.com">superboycyc@gmail.com</a><br><br>'
+                f'<a href="{updater.REPOSITORY}">GitHub / 源代码与问题反馈</a><br>'
+                f'<a href="{updater.REPOSITORY}/releases/latest">软件下载与更新</a>'
+                "<br><br>MIT 开源许可 · 第三方许可随应用提供"
+            )
+            label.setOpenExternalLinks(True)
+            layout.addWidget(label)
+            self.update_status = QLabel("尚未检查更新")
+            self.update_status.setWordWrap(True)
+            layout.addWidget(self.update_status)
+            auto = QCheckBox("自动更新")
+            auto.setChecked(self.auto_update.isChecked())
+            auto.toggled.connect(self.auto_update.setChecked)
+            self.auto_update.toggled.connect(auto.setChecked)
+            auto.toggled.connect(lambda _: self.save_preferences())
+            layout.addWidget(auto)
+            self.update_button = QPushButton("检查更新 / 一键更新")
+            self.update_button.clicked.connect(self.update_action)
+            layout.addWidget(self.update_button)
+        self.about.show()
+        self.about.raise_()
+
+    def automatic_update(self):
+        if self.auto_update.isChecked() and not os.environ.get("LECTURE_CAPTION_NO_UPDATE"):
+            self.check_update(True)
+
+    def update_action(self):
+        if self.staged_update:
+            self.install_update()
+        else:
+            self.check_update(False)
+
+    def check_update(self, automatic=False):
+        if automatic and self.staged_update:
+            return
+        if self.update_busy:
+            return
+        self.update_busy = True
+        if self.about:
+            self.update_status.setText("正在检查并下载官方最新版本…")
+
+        def run():
+            try:
+                release = updater.latest_release()
+                if updater.version_tuple(release["tag_name"]) <= updater.version_tuple(updater.current_version()):
+                    self.sig.update_result.emit({"automatic": automatic}, "当前版本已是最新，或为较新的本地预览版。")
+                    return
+                app = updater.stage_release(release, DATA_ROOT / "updates")
+                self.sig.update_result.emit(
+                    {"app": app, "automatic": automatic}, "新版已下载并校验，点击即可安装并重新打开。"
+                )
+            except Exception:
+                self.sig.update_result.emit({}, "更新检查或下载失败，当前应用不受影响。请稍后重试或从 GitHub 下载。")
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def update_received(self, result, message):
+        self.update_busy = False
+        if result.get("app"):
+            self.staged_update = result["app"]
+        if self.about:
+            self.update_status.setText(message)
+            if self.staged_update:
+                self.update_button.setText("安装更新并重新打开")
+        if self.staged_update:
+            self.status.setText(message)
+            if (
+                result.get("automatic")
+                and self.auto_update.isChecked()
+                and not self.engine.session_dir
+                and not self.editor
+            ):
+                self.install_update()
+            elif not result.get("automatic"):
+                self.install_update()
+
+    def install_update(self):
+        if self.engine.active or self.finishing or self.paused or self.engine.notes_busy or self.editor:
+            self.error("请先结束收音、完成另存并关闭笔记编辑窗口，再安装更新。")
+            return
+        if self.engine.pending and not self.lecture_ended:
+            self.error("还有尚未整理内容，请先结束并另存笔记后重试更新。")
+            return
+        try:
+            self.engine.save_notes()
+            self.save_preferences()
+            updater.launch_installer(self.staged_update)
+            self.close()
+        except Exception:
+            self.error("无法启动安装。请将应用移入“应用程序”，或从 GitHub 下载新版；原应用仍保留。")
 
     def caption(self, ident, text, translation, started=None, ended=None):
         if not self.engine.active:
@@ -930,6 +1177,14 @@ class Controls(QWidget):
         self.error(message)
 
     def closeEvent(self, event):
+        if self.finishing:
+            event.ignore()
+            self.status.setText("正在完成最后整理，请先完成另存后关闭。")
+            return
+        if self.editor:
+            event.ignore()
+            self.editor.raise_()
+            return
         self.engine.stop()
         self.engine.shutdown = True
         self.engine.force_notes.set()
