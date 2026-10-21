@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — local preview, unreleased
+
+- Add short first-run teaching, source choice, one-action Apple setup and official Groq registration/key onboarding. Validate/save keys and prepare permissions in one flow, without capture.
+- Collapse detailed settings behind Customize; retain defaults and offer setup again from Settings/About.
+- Edit notes inline with title/format toolbar and a three-item ellipsis menu. Add Markdown input, source view, ==highlight==, Command shortcuts, lists/headings and debounced backup. Defer AI during editing and reject stale results.
+- End chooses Markdown or PDF before the destination picker. Retain highlighted text in Markdown/PDF and keep original session backups. Note-only documents can also End/export without microphone capture or an API key.
+- Use a main-process native microphone-permission bridge; prepare system audio separately without starting a stream. Add an embedded WKWebView for official Groq pages, with an external-browser fallback.
+- Stop idle audio workers at shutdown and dispose GUI documents before Qt teardown.
+
+
 ## 2.1.0 — local preview, unreleased
 
 - Import UTF-8 Markdown as a continuation baseline; edit notes with snapshots and reject stale model overwrites.

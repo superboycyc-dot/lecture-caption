@@ -14,9 +14,10 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     for name, frameworks in [
         ("Keychain", ["Security"]),
+        ("GroqSetup", ["AppKit", "WebKit"]),
         ("LocalSpeech", ["Speech", "AVFoundation"]),
         ("LocalTranslate", ["Translation", "SwiftUI", "AppKit"]),
-        ("SystemAudio", ["ScreenCaptureKit", "CoreMedia", "AudioToolbox"]),
+        ("SystemAudio", ["ScreenCaptureKit", "CoreMedia", "AudioToolbox", "CoreGraphics"]),
     ]:
         command = [
             "xcrun",
@@ -55,6 +56,29 @@ def main():
             ],
             check=True,
         )
+
+    permissions = output / "Permissions.dylib"
+    subprocess.run(
+        [
+            "xcrun",
+            "swiftc",
+            "-module-cache-path",
+            str(ROOT / "build/swift-cache"),
+            "-target",
+            "arm64-apple-macosx14.0",
+            "-emit-library",
+            str(ROOT / "native/Permissions.swift"),
+            "-framework",
+            "AVFoundation",
+            "-o",
+            str(permissions),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", "--identifier", "local.lecturecaption.permissions", str(permissions)],
+        check=True,
+    )
 
 
 if __name__ == "__main__":

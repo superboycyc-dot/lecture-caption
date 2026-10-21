@@ -131,3 +131,24 @@ class DocumentTests(TestCase):
         self.assertEqual(self.engine.note_title, "最终二次整理主题")
         self.assertEqual(api.chat.call_count, 2)
         self.assertIn("【缺失片段】", "\n".join(self.engine.sections))
+
+    def test_empty_key_never_creates_cloud_client_for_note_only_save(self):
+        self.engine.configure("")
+        self.assertIsNone(self.engine.api)
+        self.engine.replace_document("# 离线手写笔记\n\n定义")
+        self.engine.finish()
+        self.assertTrue(self.engine.finished.wait(3))
+        self.assertIn("离线手写笔记", (self.engine.session_dir / "notes.md").read_text())
+
+    def test_explicit_summary_can_run_once_after_editor_focus_returns(self):
+        self.engine.replace_document("# 已有笔记\n\n定义")
+        self.engine.notes_editing = True
+        self.engine.pending = [("12:00", "New source")]
+        from unittest.mock import Mock
+
+        self.engine.api = Mock()
+        self.engine.api.chat.return_value = "# 已整理内容\n\n定义与新内容"
+        self.engine.manual_summary.set()
+        self.engine.process_notes()
+        self.engine.api.chat.assert_called_once()
+        self.assertFalse(self.engine.manual_summary.is_set())

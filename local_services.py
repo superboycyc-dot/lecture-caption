@@ -47,3 +47,30 @@ def prepare_speech():
     if platform.system() != "Darwin" or int(platform.mac_ver()[0].split(".")[0]) < 26:
         raise ApiError("新的 Apple 英文语音资源管理需要 macOS 26+；旧系统请使用 Groq 或系统英文听写。")
     return run_helper("LocalSpeech", b"", timeout=600, arguments=("--prepare",))
+
+
+def request_system_audio_permission():
+    return run_helper("SystemAudio", b"", timeout=120, arguments=("--permissions",))
+
+
+def prepare_local_resources(speech=True, translation=True):
+    if platform.system() != "Darwin" or int(platform.mac_ver()[0].split(".")[0]) < 15:
+        raise ApiError("一键本地模式需要 macOS 15+；旧系统可选择 Groq。")
+    if speech and int(platform.mac_ver()[0].split(".")[0]) >= 26:
+        prepare_speech()
+    elif speech:
+        run_helper("LocalSpeech", b"", timeout=120, arguments=("--authorize",))
+        supported = run_helper("LocalSpeech", b"", arguments=("--check",))
+        if supported != "supported":
+            raise ApiError("此系统尚未提供英文离线听写资源，请在系统中安装英文听写或选择 Groq。")
+    if translation:
+        run_helper("LocalTranslate", b"", timeout=600, arguments=("--prepare-and-exit",))
+    return "本地识别和英中翻译已就绪，无需 API key。"
+
+
+def open_groq_setup():
+    helper = NATIVE_ROOT / "GroqSetup"
+    if platform.system() != "Darwin" or not helper.exists():
+        return False
+    subprocess.Popen([str(helper)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return True

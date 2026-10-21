@@ -6,7 +6,7 @@ English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) �
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Local development preview 2.1.0 (public stable release: 2.0.0). Apple Silicon, macOS 14+. The original pipeline was exercised on an M5 Mac; full-length lectures, different microphones and conferencing apps still need broader testing. The app is ad-hoc signed, not Apple notarized.
+> Local development preview 2.2.0 (public stable release: 2.0.0). Apple Silicon, macOS 14+. The original pipeline was exercised on an M5 Mac; full-length lectures, different microphones and conferencing apps still need broader testing. The app is ad-hoc signed, not Apple notarized.
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 

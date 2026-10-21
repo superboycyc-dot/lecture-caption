@@ -26,12 +26,14 @@ struct TranslateView: View {
             do {
                 if prepare {
                     try await session.prepareTranslation()
+                    if CommandLine.arguments.contains("--prepare-and-exit") { output(["text": "Apple 英中翻译资源已准备好。"] ) }
                     status = "英文和中文翻译语言包已准备好。"
                 } else {
                     let result = try await session.translate(source)
                     output(["text": result.targetText])
                 }
             } catch {
+                if CommandLine.arguments.contains("--prepare-and-exit") { output(["error": "Apple 翻译资源准备未完成，请重试或检查网络。"], 1) }
                 if prepare { status = "准备未完成，请重试或检查网络。" }
                 else { output(["error": "Apple 本地翻译失败，请在设置中准备英中翻译语言包。"], 1) }
             }
@@ -42,7 +44,7 @@ class ClosingDelegate: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) { exit(0) }
 }
 let closingDelegate = ClosingDelegate()
-let prepare = CommandLine.arguments.contains("--prepare")
+let prepare = CommandLine.arguments.contains("--prepare") || CommandLine.arguments.contains("--prepare-and-exit")
 if #available(macOS 15.0, *) {
     let application = NSApplication.shared
     application.setActivationPolicy(.accessory)

@@ -2,6 +2,15 @@ import Foundation
 import ScreenCaptureKit
 import CoreMedia
 import AudioToolbox
+import CoreGraphics
+
+// Permission preparation does not create a stream or read audio/screens.
+if CommandLine.arguments.contains("--permissions") {
+    let allowed = CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()
+    let response = ["text": allowed ? "系统音频权限已就绪。" : "请在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中允许 Lecture Caption；系统可能要求重新打开应用。"]
+    FileHandle.standardOutput.write(try! JSONSerialization.data(withJSONObject: response))
+    exit(allowed ? 0 : 1)
+}
 
 final class AudioSink: NSObject, SCStreamOutput, SCStreamDelegate {
     func stream(_ stream: SCStream, didStopWithError error: Error) {
