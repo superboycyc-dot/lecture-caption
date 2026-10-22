@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.3.0 — 2026-10-21
+
+- Update certifi to 2026.10.19, removing compromised emSign trust roots (GHSA-6q48-6c7w-9gw2).
+
+- Replace the highlight text button with an original H / yellow marker icon. Left-align note menu actions and use “立即整理”.
+- Replace the Customize checkbox/frame with a collapsed “高级设置” disclosure. Enable automatic updates by default, preserving subsequent explicit opt-out.
+- Make first-run setup Groq-first, preparing Apple backup resources in the same flow; only explicit Skip selects local captions with notes disabled. Apple preparation failure does not block Groq setup.
+- Replace the final text tutorial with an input-blocking grey spotlight overlay, white arrows to actual controls, step counters, Next and Skip. Never activate capture from the tour.
+- Bind deferred caption/key-load timers to their widgets to prevent callbacks after window disposal.
+
+## 2.2.0 — development preview, included in 2.3.0
+
+- Add short first-run teaching, source choice, one-action Apple setup and official Groq registration/key onboarding. Validate/save keys and prepare permissions in one flow, without capture.
+- Collapse detailed settings behind Customize; retain defaults and offer setup again from Settings/About.
+- Edit notes inline with title/format toolbar and a three-item ellipsis menu. Add Markdown input, source view, ==highlight==, Command shortcuts, lists/headings and debounced backup. Defer AI during editing and reject stale results.
+- End chooses Markdown or PDF before the destination picker. Retain highlighted text in Markdown/PDF and keep original session backups. Note-only documents can also End/export without microphone capture or an API key.
+- Use a main-process native microphone-permission bridge; prepare system audio separately without starting a stream. Add an embedded WKWebView for official Groq pages, with an external-browser fallback.
+- Stop idle audio workers at shutdown and dispose GUI documents before Qt teardown.
+
+
+## 2.1.0 — development preview, included in 2.3.0
+
+- Import UTF-8 Markdown as a continuation baseline; edit notes with snapshots and reject stale model overwrites.
+- End waits for final notes/revision then opens Save As, remembers the export directory and retains internal backups.
+- Automatically reorganize whole notes and generate a topic title every 1–5 minutes (default 3); no manual revise action.
+- Click the logo for version, Yichen Chen developer/contact information, repository and update links. Official-release checking/download defaults on, with checksum/bundle validation, idle installation and macOS permission handling.
+
+
 ## 2.0.0 — 2026-10-21
 
 - Use a pure white background throughout the notes pane, including the empty placeholder.

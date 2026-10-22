@@ -78,6 +78,14 @@ func modernSpeech() async {
         finish(["error": "Apple 本地识别未完成（\(domain.prefix(70)) / \(error.code)）。请在应用设置中准备英文语音资源后重试。"], 1)
     }
 }
+if CommandLine.arguments.contains("--authorize") {
+    if #available(macOS 26.0, *) { finish(["text": "本地 SpeechAnalyzer 无需旧版听写授权。"] ) }
+    SFSpeechRecognizer.requestAuthorization { status in
+        finish(status == .authorized ? ["text": "语音识别权限已就绪。"] : ["error": "请在系统设置 → 隐私与安全性 → 语音识别中允许 Lecture Caption。"], status == .authorized ? 0 : 1)
+    }
+    RunLoop.main.run()
+    exit(0)
+}
 if #available(macOS 26.0, *) {
     Task { await modernSpeech() }
     if !CommandLine.arguments.contains("--prepare") {

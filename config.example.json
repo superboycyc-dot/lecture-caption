@@ -5,6 +5,8 @@
   "translation_model": "openai/gpt-oss-20b",
   "notes_model": "openai/gpt-oss-120b",
   "notes_interval": 45,
+  "revise_interval": 180,
+  "auto_update": true,
   "language": "en",
   "stt_backend": "cloud",
   "translation_backend": "cloud"

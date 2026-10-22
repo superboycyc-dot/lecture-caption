@@ -2,7 +2,7 @@
 
 Generated from installed distribution metadata. Each component retains its own terms.
 
-- certifi 2026.10.18: 1 distribution license/notice files retained.
+- certifi 2026.10.19: 1 distribution license/notice files retained.
 - cffi 2.1.1: 1 distribution license/notice files retained.
 - charset-normalizer 3.5.2: 1 distribution license/notice files retained.
 - idna 3.20: 1 distribution license/notice files retained.

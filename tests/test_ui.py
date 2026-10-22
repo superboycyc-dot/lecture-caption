@@ -5,6 +5,8 @@ import unittest
 from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["LECTURE_CAPTION_NO_UPDATE"] = "1"
+os.environ["LECTURE_CAPTION_NO_ONBOARDING"] = "1"
 _tmp = tempfile.TemporaryDirectory()
 os.environ.setdefault("LECTURE_CAPTION_DATA_DIR", _tmp.name)
 os.environ.pop("GROQ_API_KEY", None)
@@ -32,6 +34,16 @@ class UiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        export = patch.object(caption, "choose_export_format", return_value="md")
+        export.start()
+        self.addCleanup(export.stop)
+
+    def tearDown(self):
+        from PySide6.QtCore import QCoreApplication, QEvent
+
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
     def wait(self, predicate=None):
         # Cold CI font initialization can consume the first event-loop pass.
@@ -80,7 +92,7 @@ class UiTests(unittest.TestCase):
             win.engine.sections.append("## Definition\n- Invariant")
             win.notes.update("# 课堂笔记\n\n## Definition\n- Invariant", "synthetic.md")
             self.assertTrue(win.notes.has_content)
-            self.assertTrue(win.notes.status.isHidden() or not win.notes.status.isVisible())
+            self.assertTrue(win.notes.preview.toPlainText())
             win.key.setText("synthetic-replacement")
             win.tested(True, "success")
             self.wait(lambda: not win.credential_busy)
@@ -222,6 +234,8 @@ class UiTests(unittest.TestCase):
                 self.assertEqual(win._capture_state, "error")
                 win.stop_capture()
                 self.assertEqual(win._capture_state, "idle")
+                with patch.object(caption.QFileDialog, "getSaveFileName", return_value=("", "")):
+                    self.wait(lambda: not win.finishing)
             win.close()
 
     def test_translation_switch_keeps_input_open(self):
@@ -254,6 +268,97 @@ class UiTests(unittest.TestCase):
                 error.assert_not_called()
             self.assertEqual(win.engine.config["stt_backend"], "apple")
             self.assertFalse(win.engine.notes_enabled)
+            win.close()
+
+    def test_import_edit_and_export_remember_directory_without_touching_original(self):
+        from pathlib import Path
+        from PySide6.QtWidgets import QPlainTextEdit, QPushButton
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(caption, "CredentialStore", FakeStore):
+            root = Path(tmp)
+            original = root / "previous.md"
+            original.write_text("# 上节课\n- 定义")
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            with patch.object(caption.QFileDialog, "getOpenFileName", return_value=(str(original), "")):
+                win.import_notes()
+            self.assertIn("上节课", win.engine.sections[0])
+            win.notes.source_action.setChecked(True)
+            win.notes.source.setPlainText("# 二叉树与不变量\n- 修改后的定义")
+            self.assertTrue(win.notes.flush_edits())
+            win.notes.end_editing()
+            self.assertFalse(hasattr(win, "editor"))
+            self.assertEqual(original.read_text(), "# 上节课\n- 定义")
+            exported = root / "next.md"
+            backup = win.engine.session_dir / "notes.md"
+            with patch.object(caption.QFileDialog, "getSaveFileName", return_value=(str(exported), "")) as save:
+                win.finish_ready(True, str(backup))
+            self.assertEqual(exported.read_text(), backup.read_text())
+            self.assertEqual(win.last_export_dir, str(root))
+            self.assertIn("二叉树与不变量.md", save.call_args.args[2])
+            with patch.object(caption.QFileDialog, "getSaveFileName", return_value=("", "")) as save:
+                win.finish_ready(True, str(backup))
+            self.assertTrue(save.call_args.args[2].startswith(str(root)))
+            self.assertTrue(backup.exists())
+            win.close()
+
+    def test_update_defaults_about_and_active_capture_prevent_install(self):
+        with patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            self.assertTrue(win.auto_update.isChecked())
+            win.show_about()
+            self.assertTrue(win.about.isVisible())
+            win.engine.active = True
+            with patch.object(caption.updater, "launch_installer") as install, patch.object(win, "error") as error:
+                win.install_update()
+                install.assert_not_called()
+                error.assert_called_once()
+            win.engine.active = False
+            win.about.close()
+            win.close()
+
+    def test_finish_pdf_choice_and_cancel_preserve_internal_markdown(self):
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(caption, "CredentialStore", FakeStore):
+            root = Path(tmp)
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            win.engine.replace_document("# 课程主题\n\n==重点== **内容**")
+            backup = win.engine.session_dir / "notes.md"
+            original = backup.read_bytes()
+            pdf = root / "export.pdf"
+            with (
+                patch.object(caption, "choose_export_format", return_value="pdf"),
+                patch.object(caption.QFileDialog, "getSaveFileName", return_value=(str(pdf), "PDF (*.pdf)")) as choose,
+            ):
+                win.finish_ready(True, str(backup))
+            self.assertTrue(pdf.read_bytes().startswith(b"%PDF-"))
+            self.assertTrue(choose.call_args.args[2].endswith(".pdf"))
+            self.assertEqual(backup.read_bytes(), original)
+            with (
+                patch.object(caption, "choose_export_format", return_value=None),
+                patch.object(caption.QFileDialog, "getSaveFileName") as choose,
+            ):
+                win.finish_ready(True, str(backup))
+                choose.assert_not_called()
+            self.assertEqual(backup.read_bytes(), original)
+            win.close()
+
+    def test_manual_summary_does_not_enable_automatic_cloud_notes(self):
+        with patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            win.engine.replace_document("# 手写笔记\n\n需要整理的内容")
+            win.notes_on.setChecked(False)
+            with patch.object(win.engine, "configure"):
+                win.summarise_now()
+            self.assertFalse(win.notes_on.isChecked())
+            self.assertFalse(win.engine.notes_enabled)
+            self.assertTrue(win.engine.manual_summary.is_set())
+            self.assertIn("需要整理的内容", win.engine.pending[0][1])
+            self.assertTrue(win.stop_button.isEnabled())
             win.close()
 
 
