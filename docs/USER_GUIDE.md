@@ -1,5 +1,7 @@
 # User guide
 
+If macOS blocks the first launch, follow the [illustrated four-step opening guide](INSTALL.zh-CN.md) (Chinese screenshots). It shows System Settings, Privacy & Security, Open Anyway, and the final confirmation.
+
 The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Opacity applies to the whole window and is configured in Settings; the pin control has been removed.
 
 Click Settings to configure your Keychain credential, backends, models, glossary, note generation, chunk length and font size. The settings dialog is hidden by default. Preferences persist across restarts.
