@@ -1,5 +1,7 @@
 # 使用指南
 
+首次安装后无法打开？请先看[Mac 首次打开四步图解](INSTALL.zh-CN.md)，跟着红框操作后再继续下面的配置。
+
 ## 第一次使用
 
 1. 打开官方 [Groq API Keys](https://console.groq.com/keys)，完成注册/登录。
