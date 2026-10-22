@@ -10,7 +10,11 @@
 
 ## 下载与开始
 
-1. 在本仓库 **Releases** 下载 `macOS-arm64.zip`。
+[![立即下载 Mac 版（M 系列）](https://img.shields.io/badge/%E7%AB%8B%E5%8D%B3%E4%B8%8B%E8%BD%BD-Mac_M%E7%B3%BB%E5%88%97_%C2%B7_v2.3.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.3.0/LectureCaption-2.3.0-macOS-arm64.zip)
+
+点击上方蓝色按钮直接下载 ZIP，无需 GitHub 账号。下载后解压，拖入“应用程序”即可。
+
+1. 点击上方蓝色按钮下载 Mac 版。
 2. 解压，把 **Lecture Caption.app** 拖入“应用程序”。应用内置运行环境，不需要终端或单独安装 Python。
 3. 当前版本为本地签名、尚未 Apple 公证；如系统阻止打开，核对来源和校验和后，在“系统设置 → 隐私与安全性”使用系统提供的打开流程。
 4. 打开应用，按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。

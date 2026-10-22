@@ -27,7 +27,11 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 
 ## Install
 
-1. Download the **macOS arm64 ZIP** from this repository's **Releases** page.
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.3.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.3.0/LectureCaption-2.3.0-macOS-arm64.zip)
+
+Click the blue button to download directly. No GitHub account required.
+
+1. Click the blue **Download for Mac** button above.
 2. Extract it and drag **Lecture Caption.app** to **Applications**.
 3. Open the app. If macOS blocks this unnotarized build, use the explicit Open Anyway flow in **System Settings → Privacy & Security**, after checking the release checksum and source.
 4. Follow the first-run guide: connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
