@@ -34,7 +34,7 @@
 
 这是 macOS 的钥匙串授权窗口：软件想读取你之前保存的 **Lecture Caption API Key**，这样下次打开就不用重新输入 Groq key。这里的“机密信息”指这个已保存的 key。
 
-<img src="install/keychain-access.png" width="680" alt="macOS 钥匙串弹窗：Keychain 请求读取 Lecture Caption API Key，可选择始终允许、拒绝或允许">
+<img src="install/keychain-prompt.png" width="680" alt="macOS 钥匙串弹窗：Keychain 请求读取 Lecture Caption API Key，可选择始终允许、拒绝或允许">
 
 **先核对条目名称是“Lecture Caption API Key”**，且你正在打开官方版本的 Lecture Caption。弹窗中的 **Keychain** 是本软件随附的钥匙串辅助程序名称。
 
