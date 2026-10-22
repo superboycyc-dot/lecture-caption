@@ -4,6 +4,8 @@ If macOS blocks the first launch, follow the [illustrated four-step opening guid
 
 The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Opacity applies to the whole window and is configured in Settings; the pin control has been removed.
 
+When macOS asks whether Keychain can read “Lecture Caption API Key”, see the [illustrated Keychain explanation](INSTALL.zh-CN.md#看到keychain-想要使用机密信息怎么办). The helper reads only this saved API credential; enter the login-keychain password in the system dialog, not in the application key field. Allow is one-time; Always Allow permits subsequent access; Deny leaves manual API-key entry available.
+
 Click Settings to configure your Keychain credential, backends, models, glossary, note generation, chunk length and font size. The settings dialog is hidden by default. Preferences persist across restarts.
 
 New segments are highlighted and smoothly followed. Scroll up to read history without being pulled down; click “回到最新” to resume. The last 300 segments remain on screen; the complete transcript is stored locally. Translation updates replace their own segment, without duplicating cards.
