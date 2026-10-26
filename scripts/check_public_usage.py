@@ -55,6 +55,10 @@ def main():
         "tests": [],
     }
 
+    def checkpoint():
+        Path("public-usage-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        print("completed:", evidence["tests"][-1], flush=True)
+
     def expect(status, path, body=None, content_type="application/json"):
         result = request(path, body, content_type)
         assert result[0] == status, (path, result[0], result[2][:100])
@@ -79,6 +83,7 @@ def main():
     for _ in range(10):
         assert json.loads(expect(200, "/v1/usage/batch", batch([event]))[2]) == ack
     evidence["tests"].append("legal_post_and_ten_identical_retries")
+    checkpoint()
     event.update(revision=3, source_chars=1500)
     expect(200, "/v1/usage/batch", batch([event]))
     ack["acknowledged"][0]["revision"] = 3
@@ -87,8 +92,10 @@ def main():
     ack["acknowledged"][0]["revision"] = 4
     assert json.loads(expect(200, "/v1/usage/batch", batch([event]))[2]) == ack
     evidence["tests"].append("higher_revision_lower_correction_and_out_of_order_ack")
+    checkpoint()
     expect(409, "/v1/usage/batch", batch([other, dict(event, source_chars=1300)]))
     evidence["tests"].append("same_revision_conflict_rejected")
+    checkpoint()
     # Receive HTTP headers but discard the legal JSON acknowledgment, then retry.
     with OPENER.open(
         urllib.request.Request(
@@ -102,6 +109,7 @@ def main():
         results = list(pool.map(lambda _: request("/v1/usage/batch", batch([event])), range(8)))
     assert all(status == 200 and json.loads(body) == ack for status, _, body in results)
     evidence["tests"].append("discarded_ack_retry_and_eight_concurrent_duplicates")
+    checkpoint()
     for name in ["audio", "text", "api_key"]:
         expect(400, "/v1/usage/batch", batch([dict(event, **{name: "fictional_rejected_value"})]))
     expect(400, "/v1/usage/batch", b'{"schema_version":1,"schema_version":1,"events":[]}')
@@ -121,18 +129,20 @@ def main():
         expect(404, path)
     evidence["restricted_routes"] = {path: 404 for path in restricted}
     evidence["tests"].append("validation_body_limit_and_restricted_routes")
-    limited = False
-    for _ in range(70):
-        status, headers, _ = request("/healthz")
-        if status == 429:
-            value = next(value for name, value in headers.items() if name.lower() == "retry-after")
-            assert int(value) > 0
-            evidence["retry_after_seconds"] = int(value)
-            limited = True
-            break
-        assert status == 200
-    assert limited, "rate_limit_not_observed"
+    checkpoint()
+    # Burst within one window; sequential requests can span a full minute.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+        rate_results = list(pool.map(lambda _: request("/healthz"), range(80)))
+    assert all(status in (200, 429) for status, _, _ in rate_results)
+    rejected = [(headers, body) for status, headers, body in rate_results if status == 429]
+    assert rejected, "rate_limit_not_observed"
+    for headers, _ in rejected:
+        value = next(value for name, value in headers.items() if name.lower() == "retry-after")
+        assert int(value) > 0
+    evidence["retry_after_seconds"] = int(value)
+    evidence["rate_limit_counts"] = {str(status): sum(r[0] == status for r in rate_results) for status in (200, 429)}
     evidence["tests"].append("rate_limit_429_with_retry_after")
+    checkpoint()
     evidence["final_acknowledgment"] = ack
     evidence["expected_snapshot"] = event
     evidence["persistence_and_atomic_rollback"] = "requires_private_readonly_database_confirmation"
