@@ -537,7 +537,7 @@ class Controls(QWidget):
         )
         self.usage_sharing.toggled.connect(self.set_usage_sharing)
         form.addRow(self.usage_sharing)
-        self.usage_privacy = QLabel(USAGE_DETAIL + " 后台公网验收前仅保存在本机；网络服务可能产生连接诊断。")
+        self.usage_privacy = QLabel(USAGE_DETAIL + " 网络服务可能处理或保留 IP 连接诊断。")
         self.usage_privacy.setWordWrap(True)
         self.usage_privacy.setStyleSheet("color:#72849B;font-size:12px;")
         form.addRow(self.usage_privacy)

@@ -105,7 +105,7 @@ class SetupWizard(QDialog):
         self.usage_opt_in.toggled.connect(controls.usage_sharing.setChecked)
         controls.usage_sharing.toggled.connect(self.usage_opt_in.setChecked)
         body.addWidget(self.usage_opt_in)
-        usage_detail = QLabel(USAGE_DETAIL + " 不勾选也可继续一键授权。后台上线前仅在本机保存。")
+        usage_detail = QLabel(USAGE_DETAIL + " 不勾选也可继续一键授权。网络服务可能处理或保留 IP 连接诊断。")
         usage_detail.setWordWrap(True)
         usage_detail.setStyleSheet("color:#72849B;font-size:12px;")
         body.addWidget(usage_detail)
