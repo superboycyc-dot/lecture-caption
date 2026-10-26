@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1 — 2026-10-26
+
+- Move a compact “同意《软件使用规则》” checkbox/link above first-run connection buttons; require acceptance before setup/capture, and show it only on the first page.
+- Add an in-app rules dialog covering audio processing, permissions, numeric usage, offline retries, credentials, updates and licenses. Keep rules acceptance separate from optional usage sharing and retain the Settings opt-out.
+- Persist accepted rules version; hold a previously opted-in outbox until the new rules are accepted. Existing notes can still be read/exported without accepting.
+
 ## 2.4.0 — 2026-10-26
 
 - Add optional numeric usage consent alongside first-run permission setup and in Settings, without an extra permission step. Default off; disabling clears the local queue.

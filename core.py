@@ -22,6 +22,7 @@ from audio import Vad, Chunker, to_wav
 from quota import Usage
 from utterances import Utterance, UtteranceSegmenter, offer_utterance
 from usage_sync import UsageReporter
+from software_rules import RULES_VERSION
 
 DEFAULTS = {
     "stt_base_url": "https://api.groq.com/openai/v1",
@@ -191,7 +192,9 @@ class Engine:
         self.shutdown = False
         self.usage = Usage(DATA_ROOT / "logs/usage.json")
         self.usage_reporter = UsageReporter(
-            DATA_ROOT / "usage-sync/queue.sqlite3", self.config.get("usage_sharing", False)
+            DATA_ROOT / "usage-sync/queue.sqlite3",
+            bool(self.config.get("usage_sharing", False))
+            and self.config.get("rules_accepted_version") == RULES_VERSION,
         )
         self.usage_session_key = None
         self.usage_capture_ready = False

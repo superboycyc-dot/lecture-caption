@@ -254,6 +254,24 @@ class UsageTests(TestCase):
                 release.set()
                 self.reporter.close()
 
+    def test_suspended_queue_survives_and_late_confirmation_is_ignored(self):
+        self.enable()
+        self.reporter.capture_stopped()
+        event = self.reporter.pending()[0]
+
+        def send(url, **kwargs):
+            self.reporter.suspend()
+            return acknowledge(url, **kwargs)
+
+        self.reporter.sync_once(send)
+        self.assertFalse(self.reporter.enabled)
+        with self.reporter.lock:
+            self.assertEqual(self.reporter._database().execute("SELECT COUNT(*) FROM events").fetchone()[0], 1)
+        self.reporter.configure(True, start_worker=False)
+        self.assertEqual(self.reporter.pending(), [event])
+        self.assertTrue(self.reporter.sync_once(acknowledge))
+        self.assertEqual(self.reporter.pending(), [])
+
 
 class EngineUsageTests(TestCase):
     def test_generation_consent_boundary_and_pause_share_one_event(self):

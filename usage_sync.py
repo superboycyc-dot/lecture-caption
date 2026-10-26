@@ -322,6 +322,16 @@ class UsageReporter:
                     self.state = "同步未确认，已保留本机记录，稍后自动重试"
             return False
 
+    def suspend(self):
+        """Hold a previously opted-in queue while new use rules await acceptance."""
+        with self.lock:
+            if self.closed:
+                return
+            self.capture_stopped()
+            self.enabled = False
+            self.epoch += 1
+            self.state = "等待接受软件使用规则；未上传"
+
     def network_available(self):
         with self.lock:
             if self.enabled and not self.closed:

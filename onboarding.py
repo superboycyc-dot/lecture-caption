@@ -97,18 +97,6 @@ class SetupWizard(QDialog):
         title.setWordWrap(True)
         title.setStyleSheet("font-size:24px;font-weight:700;color:#233956;")
         body.addWidget(title)
-        from usage_sync import USAGE_NOTICE, USAGE_DETAIL
-
-        self.usage_opt_in = QCheckBox(USAGE_NOTICE)
-        self.usage_opt_in.setStyleSheet(controls.usage_sharing.styleSheet())
-        self.usage_opt_in.setChecked(controls.usage_sharing.isChecked())
-        self.usage_opt_in.toggled.connect(controls.usage_sharing.setChecked)
-        controls.usage_sharing.toggled.connect(self.usage_opt_in.setChecked)
-        body.addWidget(self.usage_opt_in)
-        usage_detail = QLabel(USAGE_DETAIL + " 不勾选也可继续一键授权。网络服务可能处理或保留 IP 连接诊断。")
-        usage_detail.setWordWrap(True)
-        usage_detail.setStyleSheet("color:#72849B;font-size:12px;")
-        body.addWidget(usage_detail)
         self.pages = QStackedWidget()
         body.addWidget(self.pages, 1)
         self.welcome = QWidget()
@@ -122,6 +110,20 @@ class SetupWizard(QDialog):
         detail.setStyleSheet("color:#72849B;")
         welcome.addWidget(detail)
         welcome.addStretch()
+        terms_row = QHBoxLayout()
+        terms_row.setSpacing(2)
+        self.terms_checkbox = QCheckBox("同意")
+        self.terms_checkbox.setStyleSheet(controls.usage_sharing.styleSheet())
+        self.terms_checkbox.setChecked(controls.has_rules())
+        self.terms_link = QLabel(
+            '<a href="rules" style="color:#2877E1;text-decoration:underline;">《软件使用规则》</a>'
+        )
+        self.terms_link.setTextInteractionFlags(Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard)
+        self.terms_link.linkActivated.connect(lambda _: controls.show_rules(self))
+        terms_row.addWidget(self.terms_checkbox)
+        terms_row.addWidget(self.terms_link)
+        terms_row.addStretch()
+        welcome.addLayout(terms_row)
         self.cloud_button = QPushButton("连接至 Groq 取得 API")
         self.cloud_button.setObjectName("primary")
         self.cloud_button.clicked.connect(self.begin_cloud)
@@ -174,6 +176,8 @@ class SetupWizard(QDialog):
         self.back.clicked.connect(lambda: self.pages.setCurrentWidget(self.welcome))
         body.addWidget(self.back)
         self.back.hide()
+        self.terms_checkbox.toggled.connect(self.terms_changed)
+        self.update_entry_buttons()
         self.step_done.connect(self.on_step)
         self.pages.currentChanged.connect(
             lambda _: self.back.setVisible(self.pages.currentWidget() is not self.welcome)
@@ -185,17 +189,37 @@ class SetupWizard(QDialog):
         self.source.addItem("电脑声音", "system")
         self.source.setCurrentIndex(1 if controls.input.currentData() == "system" else 0)
 
+    def terms_changed(self, checked):
+        self.controls.set_rules_accepted(checked)
+        if checked:
+            self.message.clear()
+        self.update_entry_buttons()
+
+    def update_entry_buttons(self):
+        enabled = self.controls.has_rules() and self.terms_checkbox.isChecked() and not self.busy
+        self.cloud_button.setEnabled(enabled)
+        self.local_button.setEnabled(enabled)
+
+    def require_rules(self):
+        if self.controls.has_rules() and self.terms_checkbox.isChecked():
+            return True
+        self.pages.setCurrentWidget(self.welcome)
+        self.message.setText("请先阅读并同意《软件使用规则》，再继续。")
+        return False
+
     def set_busy(self, busy):
         self.busy = self.controls.setup_busy = busy
         for widget in (self.local_button, self.cloud_button, self.connect, self.key, self.back):
             widget.setEnabled(not busy)
+        self.terms_checkbox.setEnabled(not busy)
+        self.update_entry_buttons()
         self.controls.start.setEnabled(not busy)
 
     def select_source(self):
         return True
 
     def begin_local(self):
-        if self.busy:
+        if self.busy or not self.require_rules():
             return
         if not self.controls.apply_setup_profile("local"):
             return
@@ -206,7 +230,7 @@ class SetupWizard(QDialog):
         self.prepare_permissions()
 
     def begin_cloud(self):
-        if self.busy:
+        if self.busy or not self.require_rules():
             return
         if not self.controls.apply_setup_profile("cloud"):
             return
@@ -233,7 +257,7 @@ class SetupWizard(QDialog):
             QDesktopServices.openUrl(QUrl(GROQ_KEYS))
 
     def submit_key(self):
-        if self.busy:
+        if self.busy or not self.require_rules():
             return
         # Read clipboard only on the explicitly labeled Next action with an empty field.
         key = self.key.text().strip()
@@ -271,6 +295,9 @@ class SetupWizard(QDialog):
         threading.Thread(target=run, daemon=True).start()
 
     def prepare_permissions(self):
+        if not self.require_rules():
+            self.set_busy(False)
+            return
         if self.controls.input.currentData() == "system":
             self.prepare_resources(True)
         else:
@@ -334,6 +361,8 @@ class SetupWizard(QDialog):
             self.pages.setCurrentWidget(self.ready)
 
     def finish(self):
+        if not self.require_rules():
+            return
         self.controls.onboarding_seen = True
         self.controls.onboarding_flow_version = 3
         self.controls.save_preferences()

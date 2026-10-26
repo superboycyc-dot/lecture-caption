@@ -257,6 +257,7 @@ class UiTests(unittest.TestCase):
     def test_pure_local_start_does_not_require_api_key(self):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
+            win.set_rules_accepted(True)
             self.wait()
             win.key.clear()
             win.stt_backend.setCurrentIndex(1)
@@ -349,6 +350,7 @@ class UiTests(unittest.TestCase):
     def test_manual_summary_does_not_enable_automatic_cloud_notes(self):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
+            win.set_rules_accepted(True)
             self.wait(lambda: bool(win.key.text()))
             win.engine.replace_document("# 手写笔记\n\n需要整理的内容")
             win.notes_on.setChecked(False)
