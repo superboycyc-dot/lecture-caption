@@ -15,8 +15,8 @@ from urllib.parse import urlsplit
 import requests
 
 # Release gate: enable only after independent, tailnet-external write verification.
-PUBLIC_UPLOAD_READY = False
-DEFAULT_USAGE_ENDPOINT = ""
+PUBLIC_UPLOAD_READY = True
+DEFAULT_USAGE_ENDPOINT = "https://orangepiaipro-us.taile2de37.ts.net/v1/usage/batch"
 USAGE_NOTICE = "分享用量统计，帮助改进软件（可选）"
 USAGE_DETAIL = "仅含录音次数、时长和转译词数/字数，不含录音、原文、译文或笔记。同意后联网同步至开发者后台，可随时关闭。"
 FIELDS = ("recording_count", "duration_ms", "source_words", "source_chars", "translated_words", "translated_chars")

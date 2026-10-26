@@ -36,7 +36,7 @@ First-run Connect/Skip actions prepare Apple speech/translation backup resources
 Inline edits remain in local backups; enabling notes or pressing immediate summary (立即整理) can send the existing document and recognized source to the configured notes provider. AI is deferred during active editing. Markdown/PDF export writes only to the user-selected path and retains the internal backup. No key means no cloud client is created.
 
 
-## Optional numeric usage (v2.4.0 local preview)
+## Optional numeric usage (v2.4.0)
 
 First-run setup and Settings contain an unchecked optional choice. Selecting it does not grant microphone access or start capture; declining does not block one-action permission preparation or any app feature. Only future successful capture and future recognized paragraphs are counted. Imported/edited notes and prior transcripts are never scanned for statistics. Enabling mid-lecture excludes the already-started paragraph to avoid retroactive collection.
 
@@ -46,6 +46,6 @@ The SQLite outbox uses WAL/FULL transactions and cumulative event revisions. A s
 
 Turning sharing off stops subsequent collection/upload and removes local queue rows; requests already in flight may have reached the receiver. Enabling again does not backfill earlier text. This is not a server-side deletion feature. Local outbox failures are displayed without stopping capture.
 
-The deployed receiver is not yet publicly DNS-resolvable. PUBLIC_UPLOAD_READY remains false and DEFAULT_USAGE_ENDPOINT is empty in this preview, even if a machine can reach a private Tailscale route. Do not enable the release gate until tailnet-external ingestion and restricted-route checks pass. Consent-enabled statistics currently remain local awaiting integration. No real customer data has been sent in tests.
+The public receiver at https://orangepiaipro-us.taile2de37.ts.net/v1/usage/batch passed independent GitHub-hosted public DNS, verified TLS, ingestion, revision/retry, rate-limit and restricted-route acceptance on 2026-10-26. PUBLIC_UPLOAD_READY is enabled for this release; sharing itself remains off until explicit consent. Ordinary users do not need Tailscale or a custom server address. Tests used random event IDs and fictional numbers on the dedicated test date 2000-01-01, never customer recordings or text. See [acceptance evidence](deployment/usage-public-acceptance.json).
 
 The receiver runs on the developer's home server. Tailscale Funnel and upstream/system diagnostics may process or retain source IP information outside the receiver's control; do not describe the full network path as anonymous or promise zero IP logs. Public numeric ingestion is unauthenticated and may be forged; totals are product-use estimates, not billing records or reliable unique-user counts. Management exposure beyond Funnel remains a separate deployment audit item.
