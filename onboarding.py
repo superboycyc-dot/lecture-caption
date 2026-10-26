@@ -116,7 +116,7 @@ class SetupWizard(QDialog):
         self.terms_checkbox.setStyleSheet(controls.usage_sharing.styleSheet())
         self.terms_checkbox.setChecked(controls.has_rules())
         self.terms_link = QLabel(
-            '<a href="rules" style="color:#2877E1;text-decoration:underline;">《软件使用规则》</a>'
+            '<a href="rules" style="color:#2877E1;text-decoration:underline;">《软件使用规则》</a>并分享用量统计'
         )
         self.terms_link.setTextInteractionFlags(Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard)
         self.terms_link.linkActivated.connect(lambda _: controls.show_rules(self))
@@ -124,6 +124,10 @@ class SetupWizard(QDialog):
         terms_row.addWidget(self.terms_link)
         terms_row.addStretch()
         welcome.addLayout(terms_row)
+        disclosure = QLabel("仅同步录音次数、时长及词数/字数，不上传录音或文本；联网后自动重试，可在设置中关闭。")
+        disclosure.setWordWrap(True)
+        disclosure.setStyleSheet("font-size:12px;color:#72849B;")
+        welcome.addWidget(disclosure)
         self.cloud_button = QPushButton("连接至 Groq 取得 API")
         self.cloud_button.setObjectName("primary")
         self.cloud_button.clicked.connect(self.begin_cloud)

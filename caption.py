@@ -769,7 +769,8 @@ class Controls(QWidget):
         self.engine.config["rules_accepted_version"] = self.rules_accepted_version
         if not accepted:
             self.engine.usage_reporter.suspend()
-        elif self.usage_sharing.isChecked():
+        else:
+            self.usage_sharing.setChecked(True)
             self.set_usage_sharing(True)
         self.save_preferences()
 

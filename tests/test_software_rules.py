@@ -70,29 +70,25 @@ class RulesTests(TestCase):
         dialog = self.win.rules_dialog
         self.assertTrue(dialog.isVisible())
         self.assertIn("用量分享", dialog.rules_view.toPlainText())
-        self.assertIn("不会自动开启", dialog.rules_view.toPlainText())
-        self.assertFalse(dialog.usage_choice.isChecked())
+        self.assertIn("无需另行勾选", dialog.rules_view.toPlainText())
+        self.assertFalse(hasattr(dialog, "usage_choice"))
         self.assertFalse(self.win.has_rules())
         self.assertFalse(self.win.engine.usage_reporter.enabled)
 
-    def test_accept_rules_alone_does_not_opt_into_metrics(self):
+    def test_explicit_combined_agreement_enables_metrics(self):
         self.wizard.terms_checkbox.click()
         self.assertTrue(self.win.has_rules())
         self.assertTrue(self.wizard.cloud_button.isEnabled())
         self.assertTrue(self.wizard.local_button.isEnabled())
-        self.assertFalse(self.win.usage_sharing.isChecked())
-        self.assertFalse(self.win.engine.usage_reporter.enabled)
+        self.assertTrue(self.win.usage_sharing.isChecked())
+        self.assertTrue(self.win.engine.usage_reporter.enabled)
         stored = json.loads((self.root / "config.json").read_text())
         self.assertEqual(stored["rules_accepted_version"], RULES_VERSION)
-        self.assertFalse(stored["usage_sharing"])
+        self.assertTrue(stored["usage_sharing"])
 
-    def test_independent_usage_choice_waits_for_rules_then_can_be_withdrawn(self):
-        self.wizard.terms_link.linkActivated.emit("rules")
-        self.win.rules_dialog.usage_choice.click()
-        self.assertTrue(self.win.usage_sharing.isChecked())
+    def test_combined_consent_can_later_be_withdrawn_in_settings(self):
         self.assertFalse(self.win.engine.usage_reporter.enabled)
         self.assertFalse((self.root / "usage-sync/queue.sqlite3").exists())
-        self.win.rules_dialog.close()
         self.wizard.terms_checkbox.click()
         self.assertTrue(self.win.engine.usage_reporter.enabled)
         self.win.usage_sharing.setChecked(False)

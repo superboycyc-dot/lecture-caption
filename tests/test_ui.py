@@ -258,6 +258,7 @@ class UiTests(unittest.TestCase):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
             win.set_rules_accepted(True)
+            win.usage_sharing.setChecked(False)
             self.wait()
             win.key.clear()
             win.stt_backend.setCurrentIndex(1)
@@ -351,6 +352,7 @@ class UiTests(unittest.TestCase):
         with patch.object(caption, "CredentialStore", FakeStore):
             win = caption.Controls()
             win.set_rules_accepted(True)
+            win.usage_sharing.setChecked(False)
             self.wait(lambda: bool(win.key.text()))
             win.engine.replace_document("# 手写笔记\n\n需要整理的内容")
             win.notes_on.setChecked(False)

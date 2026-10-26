@@ -1,6 +1,6 @@
 # Privacy and data flow
 
-Public v2.3.0 has no project-operated usage analytics. The local v2.4.0 preview introduces optional developer-operated numeric usage statistics, disabled unless the user opts in. It does **not** mean all computation is local.
+Public v2.3.0 has no project-operated usage analytics. v2.4.0 introduced developer-operated numeric usage statistics. In v2.4.1 the required first-run agreement explicitly includes usage sharing, starts unchecked, and must be checked to continue. Sharing can later be withdrawn in Settings. It does **not** mean all computation is local.
 
 | Data | Destination | When |
 |---|---|---|
@@ -13,7 +13,7 @@ Public v2.3.0 has no project-operated usage analytics. The local v2.4.0 preview 
 | API credential | macOS login Keychain, service `local.lecturecaption.api` | Explicit save / enabled save after successful test |
 | Notes and transcript events | Local app-data directory | During capture/notes processing |
 | Diagnostic messages / local quota estimate | Local logs directory | At runtime |
-| Recording count, capture duration and source/translation word/character counts, a random per-lecture event ID, revision and UTC date | Local SQLite outbox; verified developer-operated HTTPS receiver | Only after explicit opt-in; optional sharing is off by default |
+| Recording count, capture duration and source/translation word/character counts, a random per-lecture event ID, revision and UTC date | Local SQLite outbox; verified developer-operated HTTPS receiver | Only after the explicit combined first-run agreement; no sharing before acceptance |
 
 No raw audio file, screen frame, credential, or personal document is included in release assets. System audio mode uses ScreenCaptureKit audio callbacks; it can include sounds from other apps. Only one input is used at a time.
 
@@ -29,7 +29,7 @@ Continuous-document mode saves a canonical transcript.md alongside revision even
 
 Imported Markdown is copied into the local note document; the original selected file is not modified. Editing keeps before-edit snapshots. When cloud notes are enabled, imported/edited notes are sent as part of the existing-document context, including automatic second-pass revision. End exports to a user-chosen path while retaining internal backups. The last export directory is stored locally.
 
-Automatic updates default on and contact only the public official GitHub repository for release metadata and assets at startup/every6h. No API key, transcript, note or recording accompanies update requests. Newer stable assets are checked against release SHA-256 sums, bundle identifier/version and ad-hoc code-signature validity. Installation waits for normal exit; macOS handles any administrator password prompt. Disable automatic update in Settings/About to stop background requests. Update requests contain no usage statistics; optional usage reporting is a separate opt-in feature.
+Automatic updates default on and contact only the public official GitHub repository for release metadata and assets at startup/every6h. No API key, transcript, note or recording accompanies update requests. Newer stable assets are checked against release SHA-256 sums, bundle identifier/version and ad-hoc code-signature validity. Installation waits for normal exit; macOS handles any administrator password prompt. Disable automatic update in Settings/About to stop background requests. Update requests contain no usage statistics; usage sharing requires the disclosed first-run agreement.
 
 First-run Connect/Skip actions prepare Apple speech/translation backup resources and the selected input permissions; preparation never opens an audio stream. Groq is the primary setup route; only explicit Skip selects local captions and disables notes. Microphone consent is requested in the main app process. Apple may require a System Settings change/restart after denial. The optional Groq setup browser uses WebKit to display the official HTTPS account/key page; account authentication and WebKit cookies are handled by the web view/provider, without script injection, DOM/password inspection or application logging. Clipboard text is read only on the explicitly labeled Next action with an empty key field, never watched. The app stores only the copied API key through its normal Keychain mechanism. Model-list validation does not send audio/notes.
 
@@ -38,7 +38,7 @@ Inline edits remain in local backups; enabling notes or pressing immediate summa
 
 ## Optional numeric usage (v2.4.0)
 
-The first-run Software Use Rules dialog and Settings contain an unchecked optional usage choice. Accepting the use rules is required to continue setup/capture but does not turn on statistics. Rules version acceptance and usage choice are stored separately. The compact rules row appears only on the first setup page. After a new rules version, a previously opted-in numeric queue is held until acceptance, without deleting those snapshots. Selecting it does not grant microphone access or start capture; declining does not block one-action permission preparation or any app feature. Only future successful capture and future recognized paragraphs are counted. Imported/edited notes and prior transcripts are never scanned for statistics. Enabling mid-lecture excludes the already-started paragraph to avoid retroactive collection.
+The first-run page has one unchecked agreement labeled “同意《软件使用规则》并分享用量统计”, with a visible numeric-only disclosure. It must be checked to continue setup/capture and simultaneously enables usage sharing; the rules dialog has no additional checkbox. Settings retains withdrawal. Opening the rules does not grant consent. Rules version acceptance and sharing state are stored separately so later withdrawal persists. The row appears only on the first setup page. A previously opted-in numeric queue is held until current rules are accepted. Acceptance never grants microphone permission or starts capture. Only future successful capture and future recognized paragraphs are counted. Imported/edited notes and prior transcripts are never scanned for statistics. Enabling mid-lecture excludes the already-started paragraph to avoid retroactive collection.
 
 One logical lecture counts once across pause/resume and input/model switching. Monotonic capture time excludes permission waits and pauses. Live recognition/translation revisions replace paragraph length counts instead of accumulating intermediate strings. Only numeric lengths are stored, never text or audio. Latin-letter/number tokens and Unicode letter/number characters are separate measures, not added together. No stable device ID, account, filename or exact start timestamp is sent.
 

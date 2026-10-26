@@ -23,7 +23,8 @@ class OnboardingTests(TestCase):
         self.store.start()
         self.win = caption.Controls()
         self.win.show()
-        self.win.set_rules_accepted(True)  # Synthetic prior acceptance for pipeline tests.
+        self.win.set_rules_accepted(True)
+        self.win.usage_sharing.setChecked(False)  # Synthetic prior acceptance for pipeline tests.
         self.permission_patch = patch.object(
             onboarding, "request_microphone", side_effect=lambda _, callback: callback(True)
         )
@@ -159,24 +160,15 @@ class OnboardingTests(TestCase):
         self.assertEqual(self.win.stt_backend.currentData(), "cloud")
         self.assertEqual(self.win.translation_backend.currentData(), "apple")
 
-    def test_optional_usage_choice_is_inside_rules_dialog_and_independent(self):
+    def test_rules_dialog_has_no_second_usage_checkbox(self):
         self.win.show_setup()
         wizard = self.win.onboarding
         wizard.terms_link.linkActivated.emit("rules")
         self.app.processEvents()
         dialog = self.win.rules_dialog
-        self.assertFalse(dialog.usage_choice.isChecked())
+        self.assertFalse(hasattr(dialog, "usage_choice"))
+        self.assertIn("无需另行勾选", dialog.rules_view.toPlainText())
         self.assertTrue(wizard.cloud_button.isEnabled())
-        with patch.object(onboarding, "request_microphone") as permissions:
-            dialog.usage_choice.click()
-            self.assertTrue(self.win.usage_sharing.isChecked())
-            self.assertTrue(self.win.engine.usage_reporter.enabled)
-            self.assertFalse(self.win.engine.active)
-            permissions.assert_not_called()
-            self.win.usage_sharing.setChecked(False)
-            self.assertFalse(dialog.usage_choice.isChecked())
-            self.assertFalse(self.win.engine.usage_reporter.enabled)
-            self.assertTrue(wizard.cloud_button.isEnabled())
         dialog.close()
         import json
 

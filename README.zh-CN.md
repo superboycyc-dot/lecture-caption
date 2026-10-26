@@ -17,14 +17,14 @@
 1. 点击上方蓝色按钮下载 Mac 版。
 2. 解压，把 **Lecture Caption.app** 拖入“应用程序”。应用内置运行环境，不需要终端或单独安装 Python。
 3. 当前版本为本地签名、尚未 Apple 公证；如系统阻止打开，核对来源和校验和后，在“系统设置 → 隐私与安全性”使用系统提供的打开流程。[不会操作？看四步图解](docs/INSTALL.zh-CN.md)。
-4. 打开应用，阅读并勾选同意[《软件使用规则》](docs/SOFTWARE_RULES.zh-CN.md)，用量分享在弹窗中单独选择；再按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。
+4. 打开应用，阅读并勾选同意[《软件使用规则》](docs/SOFTWARE_RULES.zh-CN.md)，首页明确说明同时授权数字用量分享，无需另行勾选；再按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。
 5. 跟着箭头教程认识按钮，选音源后点“开始”。无需终端、Python 或部署服务器。
 
 **公开下载入口：** [下载最新版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，选择 `LectureCaption-2.4.1-macOS-arm64.zip`（M 系列 Mac）。
 
 ![蓝白控制面板](docs/workspace-blue.png)
 
-v2.4.1 支持**可选用量统计**（默认关闭），仅在明确同意后通过已验收的公网 HTTPS 接口上传数字；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
+v2.4.1 支持**数字用量统计**（首次明确勾选授权后启用，可在设置中关闭），仅在明确同意后通过已验收的公网 HTTPS 接口上传数字；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
 
 ## 当前功能
 
