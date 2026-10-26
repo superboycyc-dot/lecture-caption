@@ -447,6 +447,22 @@ class Controls(QWidget):
         self.quota_timer.start(3000)
         self.notes_on.toggled.connect(self.refresh_quota)
         self.refresh_quota()
+        self.usage_network_info = None
+        try:
+            from PySide6.QtNetwork import QNetworkInformation
+
+            QNetworkInformation.loadDefaultBackend()
+            self.usage_network_info = QNetworkInformation.instance()
+            if self.usage_network_info:
+                self.usage_network_info.reachabilityChanged.connect(
+                    lambda reach: (
+                        self.engine.usage_reporter.network_available()
+                        if reach == QNetworkInformation.Reachability.Online
+                        else None
+                    )
+                )
+        except (ImportError, RuntimeError):
+            pass  # Timer retries remain available when no OS backend exists.
         QShortcut(QKeySequence("Ctrl+Space"), self, activated=self.toggle)
         QShortcut(QKeySequence("Meta+,"), self, activated=self.show_settings)
         QShortcut(QKeySequence("Meta+Q"), self, activated=self.close)
@@ -509,6 +525,25 @@ class Controls(QWidget):
         self.notes_on.setChecked(config.get("notes_enabled", True))
         self.notes_on.setToolTip("启用后，将当前课堂原文与已有笔记（包括导入文件）发送给 Groq；原文同时在本机保留。")
         form.addRow(self.notes_on)
+        from usage_sync import USAGE_NOTICE, USAGE_DETAIL
+
+        self.usage_sharing = QCheckBox(USAGE_NOTICE)
+        self.usage_sharing.setChecked(bool(config.get("usage_sharing", False)))
+        self.usage_sharing.setToolTip(USAGE_DETAIL)
+        check_icon = str(ASSET_ROOT / "icons/check-white.svg")
+        self.usage_sharing.setStyleSheet(
+            "QCheckBox::indicator {width:17px;height:17px;border:1px solid #B5CAE4;border-radius:4px;background:white;}"
+            'QCheckBox::indicator:checked {background:#2877E1;border-color:#2877E1;image:url("' + check_icon + '");}'
+        )
+        self.usage_sharing.toggled.connect(self.set_usage_sharing)
+        form.addRow(self.usage_sharing)
+        self.usage_privacy = QLabel(USAGE_DETAIL + " 网络服务可能处理或保留 IP 连接诊断。")
+        self.usage_privacy.setWordWrap(True)
+        self.usage_privacy.setStyleSheet("color:#72849B;font-size:12px;")
+        form.addRow(self.usage_privacy)
+        self.usage_sync_status = QLabel()
+        self.usage_sync_status.setWordWrap(True)
+        form.addRow(self.usage_sync_status)
         self.size = QSlider(Qt.Horizontal)
         self.size.setRange(14, 30)
         self.size.setValue(int(config.get("font_size", 18)))
@@ -708,6 +743,16 @@ class Controls(QWidget):
         self.settings.raise_()
         self.settings.activateWindow()
 
+    def set_usage_sharing(self, enabled):
+        self.engine.config["usage_sharing"] = bool(enabled)
+        with self.engine.pipeline_lock:
+            self.engine.usage_reporter.configure(enabled)
+            if enabled:
+                self.engine.usage_min_paragraph = self.engine.next_id
+            if enabled and self.engine.usage_capture_ready:
+                self.engine.usage_reporter.capture_started(self.engine.usage_session_key)
+        self.save_preferences()
+
     def save_preferences(self):
         desired = {
             "stt_backend": self.stt_backend.currentData(),
@@ -716,6 +761,7 @@ class Controls(QWidget):
             "notes_model": self.note_model.currentText().strip(),
             "chunk_seconds": self.interval.currentData(),
             "notes_enabled": self.notes_on.isChecked(),
+            "usage_sharing": self.usage_sharing.isChecked(),
             "glossary": self.glossary.text().strip()[:500],
             "threshold": round(self.engine.threshold * 1000),
             "font_size": self.size.value(),
@@ -736,6 +782,7 @@ class Controls(QWidget):
         data = {k: combined[k] for k in DEFAULTS}
         for k in (
             "notes_enabled",
+            "usage_sharing",
             "glossary",
             "threshold",
             "font_size",
@@ -755,6 +802,8 @@ class Controls(QWidget):
         self.refresh_quota()
 
     def refresh_quota(self):
+        if hasattr(self, "usage_sync_status"):
+            self.usage_sync_status.setText(self.engine.usage_reporter.state)
         if not hasattr(self, "stt_backend"):
             return
         st = self.engine.usage.stats()

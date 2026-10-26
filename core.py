@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "vendor"))
 from audio import Vad, Chunker, to_wav
 from quota import Usage
 from utterances import Utterance, UtteranceSegmenter, offer_utterance
+from usage_sync import UsageReporter
 
 DEFAULTS = {
     "stt_base_url": "https://api.groq.com/openai/v1",
@@ -189,6 +190,12 @@ class Engine:
         self.finished = threading.Event()
         self.shutdown = False
         self.usage = Usage(DATA_ROOT / "logs/usage.json")
+        self.usage_reporter = UsageReporter(
+            DATA_ROOT / "usage-sync/queue.sqlite3", self.config.get("usage_sharing", False)
+        )
+        self.usage_session_key = None
+        self.usage_capture_ready = False
+        self.usage_min_paragraph = 0
         self.save_lock = threading.Lock()
         self.last_request = 0
         self.last_text = ""
@@ -199,6 +206,7 @@ class Engine:
             worker.start()
 
     def close(self):
+        self.usage_reporter.close()
         self.shutdown = True
         self.force_notes.set()
         for worker in self.workers:
@@ -228,6 +236,7 @@ class Engine:
 
         self.session_dir = DATA_ROOT / "sessions" / (time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8])
         self.session_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.usage_session_key = uuid.uuid4().hex
         self.save_notes()
 
     def replace_document(self, document, snapshot=True):
@@ -346,6 +355,17 @@ class Engine:
                 self.revise_dirty = True
             self.save_notes()
 
+    def usage_capture_started(self, generation):
+        with self.pipeline_lock:
+            if self.active and self.gen == generation:
+                self.usage_capture_ready = True
+                self.usage_reporter.capture_started(self.usage_session_key)
+
+    def count_usage_text(self, generation, ident, text, translated=False):
+        with self.pipeline_lock:
+            if self.active and self.gen == generation and ident >= self.usage_min_paragraph:
+                self.usage_reporter.count_text(self.usage_session_key, ident, text, translated=translated)
+
     def start(self, device):
         if self.active or self.stream or self.proc:
             self.stop()
@@ -399,6 +419,7 @@ class Engine:
                     finished_callback=finished,
                 )
                 self.stream.start()
+                self.usage_capture_started(generation)
                 self.sig.capture_state.emit(generation, "recording", "")
                 self.sig.status.emit(
                     "● 麦克风收音中 · "
@@ -415,6 +436,7 @@ class Engine:
             for b in proc.stderr:
                 line = b.decode("utf-8", errors="replace").strip()
                 if line == "READY" and self.active and self.gen == generation:
+                    self.usage_capture_started(generation)
                     self.sig.capture_state.emit(generation, "recording", "")
                     self.sig.status.emit("● 电脑音频收音中 · 请播放会议/视频声音")
                 else:
@@ -438,9 +460,12 @@ class Engine:
                 )
 
     def stop(self):
-        was_active = self.active
-        self.active = False
-        self.gen += 1
+        with self.pipeline_lock:
+            self.usage_capture_ready = False
+            self.usage_reporter.capture_stopped()
+            was_active = self.active
+            self.active = False
+            self.gen += 1
         if self.stream:
             self.stream.stop()
             self.stream.close()
@@ -570,6 +595,7 @@ class Engine:
                         continue
                     if utterance.final:
                         self.last_text = text
+                    self.count_usage_text(gen, ident, text)
                     self.record_text(text, **meta)
                     with self.notes_lock:
                         stamp = time.strftime("%H:%M:%S", time.localtime(utterance.started))
@@ -589,6 +615,7 @@ class Engine:
                 with self.pipeline_lock:
                     config, api = dict(self.config), self.api
                     translation_epoch = self.translation_epoch
+                translation_ok = True
                 try:
                     if config["translation_backend"] == "apple":
                         from local_services import translate
@@ -602,12 +629,15 @@ class Engine:
                             1100,
                         )
                 except ApiError as e:
+                    translation_ok = False
                     translated = f"【翻译未完成】{e}"
                     if "429" in str(e) or config["translation_backend"] == "apple":
                         if self.active and self.gen == gen and translation_epoch == self.translation_epoch:
                             self.sig.capture_failed.emit(str(e))
                 if translation_epoch != self.translation_epoch:
                     continue
+                if translation_ok:
+                    self.count_usage_text(gen, ident, translated, translated=True)
                 self.record_text(text, translated, **meta)
                 if self.active and self.gen == gen:
                     self.sig.caption.emit(ident, text, translated, utterance.started, utterance.ended)

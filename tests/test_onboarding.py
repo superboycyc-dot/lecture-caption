@@ -158,6 +158,26 @@ class OnboardingTests(TestCase):
         self.assertEqual(self.win.stt_backend.currentData(), "cloud")
         self.assertEqual(self.win.translation_backend.currentData(), "apple")
 
+    def test_usage_choice_is_optional_and_does_not_request_an_extra_permission(self):
+        self.win.show_setup()
+        wizard = self.win.onboarding
+        self.assertFalse(wizard.usage_opt_in.isChecked())
+        self.assertTrue(wizard.cloud_button.isEnabled())
+        with patch.object(onboarding, "request_microphone") as permissions:
+            wizard.usage_opt_in.click()
+            self.assertTrue(self.win.usage_sharing.isChecked())
+            self.assertTrue(self.win.engine.usage_reporter.enabled)
+            self.assertFalse(self.win.engine.active)
+            permissions.assert_not_called()
+            self.win.usage_sharing.setChecked(False)
+            self.assertFalse(wizard.usage_opt_in.isChecked())
+            self.assertFalse(self.win.engine.usage_reporter.enabled)
+            self.assertTrue(wizard.cloud_button.isEnabled())
+        import json
+
+        config = json.loads((caption.DATA_ROOT / "config.json").read_text())
+        self.assertFalse(config["usage_sharing"])
+
     def test_model_validation_uses_only_official_models_endpoint_and_hides_response_body(self):
         response = Mock(ok=False, status_code=401, text="private provider body")
         with patch.object(onboarding.requests, "get", return_value=response) as request:

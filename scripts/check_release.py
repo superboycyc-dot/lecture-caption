@@ -42,6 +42,7 @@ def main():
         "notes_editor.py",
         "onboarding.py",
         "tutorial.py",
+        "usage_sync.py",
         "assets/icons/highlight.svg",
         "native/GroqSetup.swift",
         "native/Permissions.swift",

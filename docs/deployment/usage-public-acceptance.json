@@ -1,0 +1,70 @@
+{
+  "external_run_evidence": {
+    "checked_at_utc": "2026-10-26T22:17:39.281020+00:00",
+    "runner_environment": "github-hosted",
+    "run_url": "https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895",
+    "hostname": "orangepiaipro-us.taile2de37.ts.net",
+    "public_dns_addresses": [
+      "208.111.34.11",
+      "208.111.35.209",
+      "2607:f740:0:3f::2f0",
+      "2607:f740:0:3f::3cc"
+    ],
+    "tests": [
+      "legal_post_and_ten_identical_retries",
+      "higher_revision_lower_correction_and_out_of_order_ack",
+      "same_revision_conflict_rejected",
+      "discarded_ack_retry_and_eight_concurrent_duplicates",
+      "validation_body_limit_and_restricted_routes",
+      "rate_limit_429_with_retry_after"
+    ],
+    "fictional_event_id": "569ea6bf-fd7a-4753-8063-449e7ab76e17",
+    "conflict_batch_other_event_id": "95e33c85-6a5c-408a-9f1d-c50019d09a22",
+    "restricted_routes": {
+      "/": 404,
+      "/admin": 404,
+      "/docs": 404,
+      "/openapi.json": 404,
+      "/usage.sqlite3": 404,
+      "/var/lib/lecture-usage/": 404,
+      "/v1/usage/batch/": 404
+    },
+    "retry_after_seconds": 60,
+    "rate_limit_counts": {
+      "200": 72,
+      "429": 8
+    },
+    "final_acknowledgment": {
+      "schema_version": 1,
+      "acknowledged": [
+        {
+          "event_id": "569ea6bf-fd7a-4753-8063-449e7ab76e17",
+          "revision": 4
+        }
+      ]
+    },
+    "expected_snapshot": {
+      "event_id": "569ea6bf-fd7a-4753-8063-449e7ab76e17",
+      "revision": 4,
+      "day_utc": "2000-01-01",
+      "recording_count": 1,
+      "duration_ms": 125000,
+      "source_words": 320,
+      "source_chars": 1200,
+      "translated_words": 18,
+      "translated_chars": 760
+    },
+    "persistence_and_atomic_rollback": "requires_private_readonly_database_confirmation"
+  },
+  "private_confirmation": {
+    "snapshot_matches_expected": true,
+    "conflict_other_event_absent": true,
+    "receiver_restart_preserved_snapshot": true,
+    "existing_model_and_tailscale_services_not_restarted": true,
+    "confirmation_date_utc": "2026-10-26"
+  },
+  "limits": [
+    "Funnel and upstream/system diagnostics may process or retain IP information.",
+    "Existing SSH boundary is not proven private-only; no SSH or firewall hardening was performed."
+  ]
+}

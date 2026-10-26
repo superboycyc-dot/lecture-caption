@@ -4,7 +4,7 @@ This repository is maintained with Codex assistance. The human GitHub account ow
 
 - Never inspect, commit, upload or print real API keys, Keychain contents, private recordings, personal notes, app logs or user config.
 - Keep `.env`, `config.json`, `sessions/`, `logs/`, native build outputs and application bundles out of Git. Distribute release binaries as release assets, not commits.
-- Use `docs/PRIVACY.md` as the behavioral contract. Do not add telemetry, implicit paid API fallback or capture before explicit Start.
+- Use `docs/PRIVACY.md` as the behavioral contract. Do not collect usage without explicit opt-in. Keep usage numeric-only, honor opt-out, and leave the public-upload gate disabled until independent public acceptance. Do not add implicit paid API fallback or capture before explicit Start.
 - Preserve upstream licenses and provenance in `vendor/`; avoid incidental reformatting there.
 - Work on a focused branch, add relevant regression tests, run the documented checks, open a PR and wait for CI. Do not force-push or delete protected branches.
 - Do not merge failing checks or claim live provider/device testing from mocks.
