@@ -13,7 +13,7 @@ Public v2.3.0 has no project-operated usage analytics. The local v2.4.0 preview 
 | API credential | macOS login Keychain, service `local.lecturecaption.api` | Explicit save / enabled save after successful test |
 | Notes and transcript events | Local app-data directory | During capture/notes processing |
 | Diagnostic messages / local quota estimate | Local logs directory | At runtime |
-| Recording count, capture duration and source/translation word/character counts, a random per-lecture event ID, revision and UTC date | Local SQLite outbox; developer-operated receiver once publicly verified | Only after explicit opt-in; public upload is currently gated off |
+| Recording count, capture duration and source/translation word/character counts, a random per-lecture event ID, revision and UTC date | Local SQLite outbox; verified developer-operated HTTPS receiver | Only after explicit opt-in; optional sharing is off by default |
 
 No raw audio file, screen frame, credential, or personal document is included in release assets. System audio mode uses ScreenCaptureKit audio callbacks; it can include sounds from other apps. Only one input is used at a time.
 
