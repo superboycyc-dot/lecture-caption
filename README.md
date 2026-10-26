@@ -6,13 +6,13 @@ English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) �
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Stable release **2.4.0** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. The app is ad-hoc signed, not Apple notarized.
+> Stable release **2.4.1** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. The app is ad-hoc signed, not Apple notarized.
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Version 2.4.0 adds **optional numeric usage sharing** (default off) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
+Version 2.4.1 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
 
 ## Features
 
@@ -29,14 +29,14 @@ Version 2.4.0 adds **optional numeric usage sharing** (default off) through a ve
 
 ## Install
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.0/LectureCaption-2.4.0-macOS-arm64.zip)
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.1-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.1/LectureCaption-2.4.1-macOS-arm64.zip)
 
 Click the blue button to download directly. No GitHub account required.
 
 1. Click the blue **Download for Mac** button above.
 2. Extract it and drag **Lecture Caption.app** to **Applications**.
 3. Open the app. If macOS blocks this unnotarized build, use the explicit Open Anyway flow in **System Settings → Privacy & Security**, after checking the release checksum and source. [See the illustrated four-step guide](docs/INSTALL.zh-CN.md) (Chinese screenshots).
-4. Follow the first-run guide: connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
+4. Read and accept [软件使用规则](docs/SOFTWARE_RULES.zh-CN.md) in the first-run guide; the unchecked agreement explicitly includes numeric usage sharing. Then connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
 5. Select your microphone or system audio, then start capture. Grant the relevant macOS permission when prompted.
 
 **Free application, quota-limited API.** Groq has a free tier; availability, model IDs and account quotas can change. This app cannot verify your billing plan and does not guarantee zero charges on a paid account. Check [your limits](https://console.groq.com/settings/limits) and [Groq documentation](https://console.groq.com/docs/rate-limits). No automatic fallback to a different paid provider is implemented.

@@ -1,5 +1,7 @@
 # User guide
 
+First-run setup requires accepting the versioned Software Use Rules. The blue rules link opens an in-app dialog; the agreement row sits immediately above the connection buttons and appears only on the first page. The single unchecked agreement explicitly includes numeric usage sharing; it must be checked to continue. Sharing can later be disabled in Settings. Closing setup cannot bypass the capture gate. Existing notes remain accessible for reading/export. Rules can be revisited from About.
+
 If macOS blocks the first launch, follow the [illustrated four-step opening guide](INSTALL.zh-CN.md) (Chinese screenshots). It shows System Settings, Privacy & Security, Open Anyway, and the final confirmation.
 
 The main window contains notes on the left and bilingual caption history on the right. Select microphone or system audio, then use the dedicated Start and Stop buttons. The level meter indicates incoming sound. Opacity applies to the whole window and is configured in Settings; the pin control has been removed.
@@ -49,6 +51,6 @@ Notes now edit in place. The toolbar contains title, bold/italic/headings/lists/
 
 ## Optional usage sharing (2.4)
 
-First-run setup and Settings provide a default-off optional usage choice without an extra permissions step. Only future recording counts, active capture duration and source/translation word/character lengths are recorded; no content, credentials or stable device identifier is sent. Pause/resume stays one lecture and revised paragraphs replace prior length counts. SQLite retains unacknowledged snapshots for later retry, including after relaunch. No background OS launch service is installed. Opt-out clears local queue rows; in-flight requests may already have reached the receiver. Funnel/upstream diagnostics may see IP addresses.
+The first-run agreement explicitly includes numeric usage sharing, with a visible disclosure. It starts unchecked and must be checked to continue; no second choice is needed. Sharing can later be withdrawn in Settings. Only future recording counts, active capture duration and source/translation word/character lengths are recorded; no content, credentials or stable device identifier is sent. Pause/resume stays one lecture and revised paragraphs replace prior length counts. SQLite retains unacknowledged snapshots for later retry, including after relaunch. No background OS launch service is installed. Opt-out clears local queue rows; in-flight requests may already have reached the receiver. Funnel/upstream diagnostics may see IP addresses.
 
 The v2.4.0 public HTTPS receiver passed [independent tailnet-external acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895). Ordinary users need no Tailscale or custom server address. Sharing remains off by default and only starts after explicit consent; status is visible in Settings.

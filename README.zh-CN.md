@@ -10,21 +10,21 @@
 
 ## 下载与开始
 
-[![立即下载 Mac 版（M 系列）](https://img.shields.io/badge/%E7%AB%8B%E5%8D%B3%E4%B8%8B%E8%BD%BD-Mac_M%E7%B3%BB%E5%88%97_%C2%B7_v2.4.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.0/LectureCaption-2.4.0-macOS-arm64.zip)
+[![立即下载 Mac 版（M 系列）](https://img.shields.io/badge/%E7%AB%8B%E5%8D%B3%E4%B8%8B%E8%BD%BD-Mac_M%E7%B3%BB%E5%88%97_%C2%B7_v2.4.1-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.1/LectureCaption-2.4.1-macOS-arm64.zip)
 
 点击上方蓝色按钮直接下载 ZIP，无需 GitHub 账号。下载后解压，拖入“应用程序”即可。
 
 1. 点击上方蓝色按钮下载 Mac 版。
 2. 解压，把 **Lecture Caption.app** 拖入“应用程序”。应用内置运行环境，不需要终端或单独安装 Python。
 3. 当前版本为本地签名、尚未 Apple 公证；如系统阻止打开，核对来源和校验和后，在“系统设置 → 隐私与安全性”使用系统提供的打开流程。[不会操作？看四步图解](docs/INSTALL.zh-CN.md)。
-4. 打开应用，按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。
+4. 打开应用，阅读并勾选同意[《软件使用规则》](docs/SOFTWARE_RULES.zh-CN.md)，首页明确说明同时授权数字用量分享，无需另行勾选；再按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。
 5. 跟着箭头教程认识按钮，选音源后点“开始”。无需终端、Python 或部署服务器。
 
-**公开下载入口：** [下载最新版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，选择 `LectureCaption-2.4.0-macOS-arm64.zip`（M 系列 Mac）。
+**公开下载入口：** [下载最新版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，选择 `LectureCaption-2.4.1-macOS-arm64.zip`（M 系列 Mac）。
 
 ![蓝白控制面板](docs/workspace-blue.png)
 
-v2.4.0 支持**可选用量统计**（默认关闭），仅在明确同意后通过已验收的公网 HTTPS 接口上传数字；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
+v2.4.1 支持**数字用量统计**（首次明确勾选授权后启用，可在设置中关闭），仅在明确同意后通过已验收的公网 HTTPS 接口上传数字；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
 
 ## 当前功能
 
@@ -54,7 +54,7 @@ v2.4.0 支持**可选用量统计**（默认关闭），仅在明确同意后通
 
 数学识别和整理可能出错。老师没有念出的板书、符号和图示不能从音频还原。内置预览不排版 LaTeX，可用 Typora / Obsidian 等打开笔记。暂停会停止上传，丢弃尚未识别的音频并标记；保留最后一句时，等字幕出现再暂停。
 
-正式版 `v2.4.0` 支持 Apple Silicon、macOS 14+。用户已在 M5 上确认原始管线能生成英文、中文和笔记；长课时、不同设备及会议软件仍需更多测试。蓝白界面为 Qt 定制主题与半透明效果，不是原生 Liquid Glass 控件。
+正式版 `v2.4.1` 支持 Apple Silicon、macOS 14+。用户已在 M5 上确认原始管线能生成英文、中文和笔记；长课时、不同设备及会议软件仍需更多测试。蓝白界面为 Qt 定制主题与半透明效果，不是原生 Liquid Glass 控件。
 
 笔记与日志位于 `~/Library/Application Support/Lecture Caption/`；笔记窗口可直接打开文件夹。云端模式的音频与转写会发送至你配置的 API；Apple 识别/翻译在本机完成，但开启自动笔记仍会把原文发送给 Groq，详见 [隐私说明](docs/PRIVACY.md)。
 

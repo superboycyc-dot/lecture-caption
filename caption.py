@@ -1,4 +1,5 @@
 from pathlib import Path
+from software_rules import RULES_VERSION, make_rules_dialog
 import os, sys, json, threading, subprocess, time, re
 from PySide6.QtCore import Qt, Signal, QObject, QTimer, QUrl, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut, QIcon, QPixmap
@@ -51,7 +52,7 @@ QPushButton:hover { background:#D7E9FF; border-color:#A4C7F8; }
 QPushButton:pressed { background:#C5DDFF; }
 QPushButton:checked,QPushButton#primary { background:#2877E1; color:#FFFFFF; border:1px solid #2877E1; }
 QPushButton#primary:hover { background:#1766D1; }
-QPushButton:disabled { background:#EDF1F6; color:#99A6B8; border-color:#E3E9F1; }
+QPushButton:disabled,QPushButton#primary:disabled { background:#EDF1F6; color:#99A6B8; border-color:#E3E9F1; }
 QCheckBox { spacing:8px; background:transparent; }
 QSlider { background:transparent; min-height:22px; }
 QSlider::groove:horizontal { background:#DAE5F3; height:5px; border-radius:2px; }
@@ -292,6 +293,8 @@ class Controls(QWidget):
                 config = json.loads((DATA_ROOT / "config.json").read_text())
             except Exception:
                 pass
+        self.rules_accepted_version = config.get("rules_accepted_version", "")
+        self.rules_dialog = None
         self.sig = Signals()
         self.engine = Engine(self.sig, config)
         self.notes = NotesPane(self.engine, ASSET_ROOT, DATA_ROOT)
@@ -312,7 +315,9 @@ class Controls(QWidget):
         self.about = None
         self.setup_busy = False
         self.onboarding = None
-        self.onboarding_seen = config.get("onboarding_seen", False) and config.get("onboarding_flow_version", 0) >= 3
+        self.onboarding_seen = (
+            config.get("onboarding_seen", False) and config.get("onboarding_flow_version", 0) >= 3 and self.has_rules()
+        )
         self.onboarding_flow_version = config.get("onboarding_flow_version", 0)
         self.tour = None
         header = QHBoxLayout()
@@ -647,6 +652,8 @@ class Controls(QWidget):
         self.onboarding.raise_()
         if self.setup_busy:
             return
+        if profile in ("local", "cloud", "permissions") and not self.onboarding.require_rules():
+            return
         if profile == "local":
             self.onboarding.begin_local()
         elif profile == "cloud":
@@ -711,6 +718,9 @@ class Controls(QWidget):
         return True
 
     def summarise_now(self):
+        if not self.has_rules():
+            self.show_setup()
+            return
         if self.finishing or not self.notes.end_editing():
             return
         if not self.key.text().strip():
@@ -743,14 +753,37 @@ class Controls(QWidget):
         self.settings.raise_()
         self.settings.activateWindow()
 
+    def has_rules(self):
+        return self.rules_accepted_version == RULES_VERSION
+
+    def show_rules(self, parent=None):
+        if self.rules_dialog:
+            self.rules_dialog.close()
+            self.rules_dialog.deleteLater()
+        self.rules_dialog = make_rules_dialog(self, parent)
+        self.rules_dialog.show()
+        self.rules_dialog.raise_()
+
+    def set_rules_accepted(self, accepted):
+        self.rules_accepted_version = RULES_VERSION if accepted else ""
+        self.engine.config["rules_accepted_version"] = self.rules_accepted_version
+        if not accepted:
+            self.engine.usage_reporter.suspend()
+        else:
+            self.usage_sharing.setChecked(True)
+            self.set_usage_sharing(True)
+        self.save_preferences()
+
     def set_usage_sharing(self, enabled):
         self.engine.config["usage_sharing"] = bool(enabled)
         with self.engine.pipeline_lock:
-            self.engine.usage_reporter.configure(enabled)
-            if enabled:
+            if not enabled:
+                self.engine.usage_reporter.configure(False)
+            elif self.has_rules():
+                self.engine.usage_reporter.configure(True)
                 self.engine.usage_min_paragraph = self.engine.next_id
-            if enabled and self.engine.usage_capture_ready:
-                self.engine.usage_reporter.capture_started(self.engine.usage_session_key)
+                if self.engine.usage_capture_ready:
+                    self.engine.usage_reporter.capture_started(self.engine.usage_session_key)
         self.save_preferences()
 
     def save_preferences(self):
@@ -762,6 +795,7 @@ class Controls(QWidget):
             "chunk_seconds": self.interval.currentData(),
             "notes_enabled": self.notes_on.isChecked(),
             "usage_sharing": self.usage_sharing.isChecked(),
+            "rules_accepted_version": self.rules_accepted_version,
             "glossary": self.glossary.text().strip()[:500],
             "threshold": round(self.engine.threshold * 1000),
             "font_size": self.size.value(),
@@ -783,6 +817,7 @@ class Controls(QWidget):
         for k in (
             "notes_enabled",
             "usage_sharing",
+            "rules_accepted_version",
             "glossary",
             "threshold",
             "font_size",
@@ -1041,6 +1076,9 @@ class Controls(QWidget):
     def toggle(self):
         if self.tour and self.tour.isVisible():
             return
+        if not self.has_rules():
+            self.show_setup()
+            return
         if self.setup_busy:
             self.status.setText("正在准备权限和资源，准备完成后即可开始。")
             return
@@ -1217,6 +1255,9 @@ class Controls(QWidget):
             guide = QPushButton("重新打开首次使用指南")
             guide.clicked.connect(self.show_setup)
             layout.addWidget(guide)
+            rules = QPushButton("软件使用规则")
+            rules.clicked.connect(lambda: self.show_rules(self.about))
+            layout.addWidget(rules)
         self.about.show()
         self.about.raise_()
 

@@ -43,6 +43,8 @@ def main():
         "onboarding.py",
         "tutorial.py",
         "usage_sync.py",
+        "software_rules.py",
+        "docs/SOFTWARE_RULES.zh-CN.md",
         "assets/icons/highlight.svg",
         "native/GroqSetup.swift",
         "native/Permissions.swift",
