@@ -31,14 +31,14 @@ Live selectors remain enabled during capture. Translation-only switches keep cap
 Notes now revise one coherent document, backed by a cumulative transcript.md. Long lectures send the full previous note document, about 18000 characters of recent whole transcript paragraphs, and all unprocessed text; the complete original stays on disk. Enabling notes sends this accumulated context, including earlier locally recorded content in the current lecture, to the configured notes API.
 
 
-## Continuation and updates (2.1 local preview)
+## Continuation and updates
 
 Import Markdown with the left note-toolbar folder icon and edit with the pencil. The original file is unchanged; before-edit snapshots remain in session storage. End waits for final generation and automatic revision, then opens Save As in the last successful export directory. Cancel retains the internal backup. Automatic revision (1–5 minutes, default 3) reorganizes the whole document and generates a subject title when changed; it requires automatic cloud notes and uses additional text quota. Imported notes are included in provider context.
 
 Click the logo for version/developer information and official GitHub updates. Default automatic updates check startup/every6h and download validated newer stable Apple Silicon bundles. Only idle apps without a session auto-install; otherwise end/export and use the install button. Protected directories use the macOS administrator prompt, never app-managed passwords. The installer waits for normal exit and validates the staged replacement before swapping. Keys and session backups stay in place. No manual revise action is exposed; source runs do not replace app bundles.
 
 
-## First run and inline notes (2.3 local preview)
+## First run and inline notes
 
 The first-run guide explains Groq-backed captions, translation and notes. Connect prepares Apple backup resources and selected-input permissions, then opens the official embedded Groq registration/key page (external browser fallback). Authenticate, create and copy a key, then click Next to validate and save to Keychain. With an empty field, this explicit Next action reads the clipboard once; it is never watched. Apple backup preparation failure does not prevent connecting Groq. Only explicit Skip selects local captions and disables notes. Setup never starts capture.
 
@@ -47,8 +47,8 @@ The final guide is a grey overlay on the actual workspace, with white arrows, st
 Notes now edit in place. The toolbar contains title, bold/italic/headings/lists/highlight/strike; the ellipsis contains only source view, immediate summary (立即整理) and folder. ==highlight== and standard inline Markdown input are supported, with Command+B/I/H and Command+Shift+X. Source mode edits the same document. AI waits during active editing and stale responses are rejected. End offers Markdown/PDF then a destination; note-only documents can export without capture/key. Rich edits normalize Markdown; code stays literal and LaTeX remains source text.
 
 
-## Optional usage sharing (2.4 local preview)
+## Optional usage sharing (2.4)
 
 First-run setup and Settings provide a default-off optional usage choice without an extra permissions step. Only future recording counts, active capture duration and source/translation word/character lengths are recorded; no content, credentials or stable device identifier is sent. Pause/resume stays one lecture and revised paragraphs replace prior length counts. SQLite retains unacknowledged snapshots for later retry, including after relaunch. No background OS launch service is installed. Opt-out clears local queue rows; in-flight requests may already have reached the receiver. Funnel/upstream diagnostics may see IP addresses.
 
-Public upload remains gated off with an empty endpoint until public DNS and tailnet-external ingestion acceptance pass; private-network access is insufficient. Consented records currently stay local, with status visible in Settings. Public stable remains v2.3.0.
+The v2.4.0 public HTTPS receiver passed [independent tailnet-external acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895). Ordinary users need no Tailscale or custom server address. Sharing remains off by default and only starts after explicit consent; status is visible in Settings.
