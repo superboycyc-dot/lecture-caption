@@ -12,6 +12,8 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+Local v2.4.0 development adds **optional numeric usage sharing** (default off). Public uploading remains disabled pending server acceptance; the public download below is still v2.3.0. See [privacy details](docs/PRIVACY.md).
+
 ## Features
 
 - **Classroom and online audio:** microphone input, or native ScreenCaptureKit system audio without a virtual audio driver. One source at a time.

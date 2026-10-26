@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QComboBox,
+    QCheckBox,
     QStackedWidget,
 )
 import local_services
@@ -88,7 +89,7 @@ class SetupWizard(QDialog):
         self.preparing_initial = False
         self.setWindowTitle("Lecture Caption · 首次设置")
         self.setWindowModality(Qt.WindowModal)
-        self.resize(580, 440)
+        self.resize(600, 540)
         body = QVBoxLayout(self)
         body.setContentsMargins(28, 24, 28, 24)
         body.setSpacing(16)
@@ -96,6 +97,18 @@ class SetupWizard(QDialog):
         title.setWordWrap(True)
         title.setStyleSheet("font-size:24px;font-weight:700;color:#233956;")
         body.addWidget(title)
+        from usage_sync import USAGE_NOTICE, USAGE_DETAIL
+
+        self.usage_opt_in = QCheckBox(USAGE_NOTICE)
+        self.usage_opt_in.setStyleSheet(controls.usage_sharing.styleSheet())
+        self.usage_opt_in.setChecked(controls.usage_sharing.isChecked())
+        self.usage_opt_in.toggled.connect(controls.usage_sharing.setChecked)
+        controls.usage_sharing.toggled.connect(self.usage_opt_in.setChecked)
+        body.addWidget(self.usage_opt_in)
+        usage_detail = QLabel(USAGE_DETAIL + " 不勾选也可继续一键授权。后台上线前仅在本机保存。")
+        usage_detail.setWordWrap(True)
+        usage_detail.setStyleSheet("color:#72849B;font-size:12px;")
+        body.addWidget(usage_detail)
         self.pages = QStackedWidget()
         body.addWidget(self.pages, 1)
         self.welcome = QWidget()

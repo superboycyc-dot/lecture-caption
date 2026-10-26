@@ -45,3 +45,10 @@ The first-run guide explains Groq-backed captions, translation and notes. Connec
 The final guide is a grey overlay on the actual workspace, with white arrows, step counters, Next and Skip. Highlighted controls cannot start capture during the tutorial. Detailed settings use a collapsed “高级设置” disclosure. Automatic updates default on, with opt-out. Revisit setup/tutorial from Settings or About.
 
 Notes now edit in place. The toolbar contains title, bold/italic/headings/lists/highlight/strike; the ellipsis contains only source view, immediate summary (立即整理) and folder. ==highlight== and standard inline Markdown input are supported, with Command+B/I/H and Command+Shift+X. Source mode edits the same document. AI waits during active editing and stale responses are rejected. End offers Markdown/PDF then a destination; note-only documents can export without capture/key. Rich edits normalize Markdown; code stays literal and LaTeX remains source text.
+
+
+## Optional usage sharing (2.4 local preview)
+
+First-run setup and Settings provide a default-off optional usage choice without an extra permissions step. Only future recording counts, active capture duration and source/translation word/character lengths are recorded; no content, credentials or stable device identifier is sent. Pause/resume stays one lecture and revised paragraphs replace prior length counts. SQLite retains unacknowledged snapshots for later retry, including after relaunch. No background OS launch service is installed. Opt-out clears local queue rows; in-flight requests may already have reached the receiver. Funnel/upstream diagnostics may see IP addresses.
+
+Public upload remains gated off with an empty endpoint until public DNS and tailnet-external ingestion acceptance pass; private-network access is insufficient. Consented records currently stay local, with status visible in Settings. Public stable remains v2.3.0.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0 — local preview, unreleased
+
+- Add optional numeric usage consent alongside first-run permission setup and in Settings, without an extra permission step. Default off; disabling clears the local queue.
+- Persist cumulative per-lecture numeric snapshots with revision-based acknowledgements, offline retry, backoff and no content/device identifiers. Count pause/resume once and replace interim paragraph counts.
+- Keep public uploading disabled pending Funnel DNS and external acceptance; private-server access is not public verification.
+
 ## 2.3.0 — 2026-10-21
 
 - Update certifi to 2026.10.19, removing compromised emSign trust roots (GHSA-6q48-6c7w-9gw2).
