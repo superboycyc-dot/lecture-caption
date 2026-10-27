@@ -67,6 +67,9 @@ def running_bundle():
 def installed_location(bundle):
     # A renamed app or an app in an Applications subfolder is already installed.
     path = bundle.resolve()
+    data_root = Path("/System/Volumes/Data")
+    if data_root in path.parents:
+        path = Path("/") / path.relative_to(data_root)
     return path.suffix == ".app" and any(
         root.resolve() in path.parents for root in (Path("/Applications"), Path.home() / "Applications")
     )

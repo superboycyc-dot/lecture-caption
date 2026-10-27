@@ -14,6 +14,7 @@ class AppInstallTests(unittest.TestCase):
         self.assertFalse(app_install.installed_location(Path("/tmp/Lecture Caption.app")))
         self.assertTrue(app_install.installed_location(Path("/Applications/Lecture Caption 2.app")))
         self.assertTrue(app_install.installed_location(Path("/Applications/Study/Lecture Caption.app")))
+        self.assertTrue(app_install.installed_location(Path("/System/Volumes/Data/Applications/Lecture Caption.app")))
         self.assertIsNone(app_install.running_bundle())
         self.assertTrue(app_install.ensure_installed())
 
