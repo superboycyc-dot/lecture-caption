@@ -153,11 +153,10 @@ def installer_script(staged, target, parent_pid):
 def launch_installer(staged):
     if not getattr(sys, "frozen", False):
         raise ValueError("源码运行模式不替换应用，请使用打包版本")
-    target = Path(sys.executable).resolve().parents[2]
-    if (
-        target.parent not in (Path("/Applications"), Path.home() / "Applications")
-        or target.name != "Lecture Caption.app"
-    ):
+    from app_install import running_bundle, installed_location
+
+    target = running_bundle()
+    if target is None or not installed_location(target):
         raise ValueError("请先将应用移入“应用程序”后更新")
     # A separate process waits for normal application exit before swapping bundles.
     folder = staged.parents[1]
