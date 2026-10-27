@@ -152,3 +152,62 @@ class DocumentTests(TestCase):
         self.engine.process_notes()
         self.engine.api.chat.assert_called_once()
         self.assertFalse(self.engine.manual_summary.is_set())
+
+    def test_append_then_consolidate_keeps_entire_previous_document(self):
+        self.engine.replace_document("# 基础\n\n第一部分")
+        self.engine.api = Mock()
+        self.engine.api.chat.side_effect = ["第二部分", "第三部分", "# 累计课程主题\n\n第一、二、三部分"]
+        for text in ["new second source", "new third source"]:
+            self.engine.pending = [("10:00", text)]
+            self.engine.process_notes()
+        self.assertEqual(self.engine.sections, ["# 基础\n\n第一部分", "第二部分", "第三部分"])
+        self.engine.revise_notes()
+        payload = self.engine.api.chat.call_args.args[2]
+        for text in ["第一部分", "第二部分", "第三部分"]:
+            self.assertIn(text, payload)
+        self.assertEqual(self.engine.sections, ["# 累计课程主题\n\n第一、二、三部分"])
+        self.engine.pending = [("10:30", "fourth source")]
+        self.engine.api.chat.return_value = "第四部分"
+        self.engine.api.chat.side_effect = None
+        self.engine.process_notes()
+        self.assertEqual(self.engine.sections[-1], "第四部分")
+        self.assertIn("第一、二、三部分", self.engine.sections[0])
+
+    def test_failed_append_requeues_and_failure_stays_until_success(self):
+        self.engine.replace_document("# 基础\n\n原笔记")
+        self.engine.pending = [("10:00", "synthetic source")]
+        self.engine.api = Mock()
+        self.engine.api.chat.side_effect = core.ApiError("provider unavailable")
+        self.assertFalse(self.engine.process_notes())
+        self.assertEqual(self.engine.pending, [("10:00", "synthetic source")])
+        self.assertEqual(self.engine.sections, ["# 基础\n\n原笔记"])
+        self.assertTrue(self.engine.notes_failed)
+        self.engine.report_note_status("正在重试")
+        self.assertIn("Groq模型整理失败", self.engine.sig.note_status.items[-1][0])
+        self.engine.api.chat.side_effect = None
+        self.engine.api.chat.return_value = "新增笔记"
+        self.engine.process_notes()
+        self.assertFalse(self.engine.notes_failed)
+        self.assertEqual(self.engine.pending, [])
+        self.assertEqual(self.engine.sections[-1], "新增笔记")
+
+    def test_incremental_payload_is_bounded_and_pending_backlog_is_preserved(self):
+        self.engine.replace_document("# 第一部分\n" + "Old material " * 10000 + "\nRecent context")
+        self.engine.pending = [("10:00", "new " * 1000), ("10:30", "next " * 1000)]
+        self.engine.api = Mock()
+        self.engine.api.chat.return_value = "新增摘要"
+        self.engine.process_notes()
+        args = self.engine.api.chat.call_args.args
+        self.assertLess(len(args[2]), 7000)
+        self.assertEqual(args[3], 1800)
+        self.assertIn("Recent context", args[2])
+        self.assertEqual(self.engine.pending, [("10:30", "next " * 1000)])
+        self.assertIn("Old material", self.engine.sections[0])
+
+    def test_failure_reason_is_safe_and_remains_until_success(self):
+        self.engine.report_note_status("", failed=True, reason=core.safe_note_error(core.ApiError("429 限流")))
+        self.engine.report_note_status("正在重试")
+        self.assertIn("429 限流", self.engine.sig.note_status.items[-1][0])
+        self.assertNotIn("private source", core.safe_note_error(ValueError("private source")))
+        self.engine.report_note_status("成功", success=True)
+        self.assertEqual(self.engine.note_error_reason, "")

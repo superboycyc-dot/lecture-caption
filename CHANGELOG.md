@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.6 — 2026-10-27
+- Append new notes every 30 seconds and consolidate the whole document every five minutes.
+- Keep safe, specific Groq note failure reasons visible until successful recovery, preserving pending source on failure.
+- Bound incremental note context/output, drain failure backlogs in batches and scale consolidation output to document size.
+- Retry network/timeouts, 429 and temporary server errors at most twice with backoff, per-model cooldowns and cancellation on capture stop.
+- Save transcript Markdown in the default PDF directory and add a separate transcript export button.
+
 ## 2.4.5 — 2026-10-26
 - Distribute official macOS assets with Developer ID Application signing, Hardened Runtime, secure timestamps and an accepted stapled Apple notarization ticket.
 - Keep signing identities and notarization authorization in the local Keychain; prevent unsigned CI artifacts being published as official releases.

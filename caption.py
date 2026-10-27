@@ -293,6 +293,7 @@ class Controls(QWidget):
                 config = json.loads((DATA_ROOT / "config.json").read_text())
             except Exception:
                 pass
+        config.update(notes_interval=30, revise_interval=300)
         self.rules_accepted_version = config.get("rules_accepted_version", "")
         self.rules_dialog = None
         self.sig = Signals()
@@ -393,15 +394,23 @@ class Controls(QWidget):
         splitter.setSizes([540, 620])
         body.addWidget(splitter, 1)
         self.status = QLabel("就绪 · 选择音源并开始")
-        self.status.setWordWrap(False)
+        self.status.setWordWrap(True)
         self.status.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.status.setStyleSheet("font-size:11px;color:#8295AD;")
         self.notes.layout().addWidget(self.status)
+        self.note_failure = QLabel("Groq模型整理失败，请稍后重试或重新配置模型")
+        self.note_failure.setWordWrap(True)
+        self.note_failure.setStyleSheet("color:#C94739;font-size:11px;")
+        self.note_failure.hide()
+        self.notes.layout().addWidget(self.note_failure)
         footer = QHBoxLayout()
         self.quota = QLabel()
         self.quota.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.quota.setStyleSheet("color:#6C829D;font-size:11px;")
         footer.addWidget(self.quota, 1)
+        self.save_transcript_button = QPushButton("另存转录")
+        self.save_transcript_button.clicked.connect(self.save_transcript)
+        footer.addWidget(self.save_transcript_button)
         self.capture_indicator = QLabel("●")
         self.capture_indicator.setFixedWidth(18)
         self.capture_indicator.setAlignment(Qt.AlignCenter)
@@ -430,7 +439,7 @@ class Controls(QWidget):
         self.notes.content_changed.connect(self.refresh_end_button)
         self.sig.notes.connect(lambda *_: self.refresh_end_button())
         self.sig.note_status.connect(self.notes.note_status)
-        self.sig.note_status.connect(self.status.setText)
+        self.sig.note_status.connect(self.on_note_status)
         self.sig.error.connect(self.error)
         self.sig.capture_failed.connect(self.capture_failed)
         self.sig.input_failed.connect(self.on_input_failed)
@@ -631,7 +640,7 @@ class Controls(QWidget):
         self.revise_interval = QComboBox()
         for minutes in range(1, 6):
             self.revise_interval.addItem(f"每 {minutes} 分钟", minutes * 60)
-        self.revise_interval.setCurrentIndex(max(0, self.revise_interval.findData(config.get("revise_interval", 180))))
+        self.revise_interval.setCurrentIndex(max(0, self.revise_interval.findData(config.get("revise_interval", 300))))
         self.revise_interval.currentIndexChanged.connect(
             lambda: self.engine.config.update(revise_interval=self.revise_interval.currentData())
         )
@@ -739,7 +748,7 @@ class Controls(QWidget):
         self.stt_backend.setCurrentIndex(self.stt_backend.findData(backend))
         self.translation_backend.setCurrentIndex(self.translation_backend.findData(backend))
         self.interval.setCurrentIndex(self.interval.findData(8))
-        self.revise_interval.setCurrentIndex(self.revise_interval.findData(180))
+        self.revise_interval.setCurrentIndex(self.revise_interval.findData(300))
         self.notes_on.setChecked(profile == "cloud")
         self.engine.notes_enabled = self.notes_on.isChecked()
         self.remember_key.setChecked(True)
@@ -910,9 +919,18 @@ class Controls(QWidget):
         if not enabled:
             self.status.setText("自动笔记已关闭；设置中开启，或点 ⋯ → 立即整理。")
         elif not self.engine.active:
-            self.status.setText("自动笔记已开启 · 收音后约每 45 秒整理一次。")
+            self.status.setText("自动笔记已开启 · 收音后约每 30 秒追加笔记，每 5 分钟整合一次。")
+
+    def on_note_status(self, message):
+        self.note_failure.setText(message)
+        self.note_failure.setVisible(self.engine.notes_failed)
+        self.status.setVisible(not self.engine.notes_failed)
+        self.status.setText(message)
 
     def on_status(self, message):
+        if self.engine.notes_failed:
+            self.status.setText("Groq模型整理失败，请稍后重试或重新配置模型")
+            return
         if message.startswith("●"):
             if self.notes_on.isChecked():
                 self.status.clear()
@@ -1209,6 +1227,42 @@ class Controls(QWidget):
             self.pdf_directory.setText(directory)
             self.save_preferences()
 
+    def save_transcript(self):
+        self.engine.save_notes()
+        if not self.engine.session_dir:
+            self.status.setText("还没有可保存的转录原文。")
+            return
+        source = self.engine.session_dir / "transcript.md"
+        destination, _ = QFileDialog.getSaveFileName(
+            self, "另存转录", str(Path(self.default_pdf_dir) / "课堂转录.md"), "Markdown (*.md)"
+        )
+        if destination:
+            target = Path(destination)
+            if target.suffix.lower() != ".md":
+                target = target.with_name(target.name + ".md")
+                if (
+                    target.exists()
+                    and QMessageBox.question(self, "替换文件", "此文件已存在，是否替换？") != QMessageBox.Yes
+                ):
+                    return
+            try:
+                self.write_transcript(source, target)
+                self.status.setText("转录原文已另存为 Markdown。")
+            except OSError:
+                self.error("转录保存失败，请检查目录权限。")
+
+    @staticmethod
+    def write_transcript(source, target):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".transcript-", delete=False) as stream:
+            temporary = Path(stream.name)
+        try:
+            temporary.write_bytes(source.read_bytes())
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     def autosave_pdf(self, source, title):
         import tempfile
         import datetime
@@ -1240,6 +1294,16 @@ class Controls(QWidget):
         if not path:
             return
         title = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", self.engine.note_title).strip(" .")[:60] or "课程笔记"
+        transcript = Path(path).with_name("transcript.md")
+        import datetime
+
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        try:
+            target = Path(self.default_pdf_dir).expanduser() / (title + "-" + stamp + "-转录.md")
+            self.write_transcript(transcript, target)
+            transcript_notice = "\n转录原文已自动保存：" + str(target)
+        except OSError:
+            transcript_notice = "\n转录原文自动保存失败，请使用“另存转录”；应用内原文备份仍保留。"
         try:
             automatic = self.autosave_pdf(Path(path).read_text(encoding="utf-8"), title)
             notice = "PDF 已自动保存至默认位置\n" + str(automatic)
@@ -1247,7 +1311,7 @@ class Controls(QWidget):
         except (OSError, RuntimeError):
             notice = "PDF 自动保存失败，请检查默认目录权限，或选择另存为 PDF。\n应用内 Markdown 备份仍保留。"
             self.status.setText("PDF 自动保存失败；Markdown 备份已保留。")
-        kind = choose_export_format(self, notice)
+        kind = choose_export_format(self, notice + transcript_notice)
         if kind is None:
             return
         destination, _ = QFileDialog.getSaveFileName(
