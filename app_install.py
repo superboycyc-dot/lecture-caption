@@ -10,15 +10,65 @@ import sys
 import uuid
 
 
+def original_bundle_path(bundle):
+    """Resolve App Translocation using Apple's original-path lookup, when available.
+
+    Reference: apple-oss-distributions/Security, SecTranslocate.h.
+    Failure leaves the path unchanged; reopening also has a one-launch loop guard.
+    """
+    if sys.platform != "darwin" or "AppTranslocation" not in bundle.parts:
+        return bundle
+    import ctypes
+
+    cf = original = url = error = None
+    try:
+        cf = ctypes.CDLL("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")
+        security = ctypes.CDLL("/System/Library/Frameworks/Security.framework/Security")
+        cf.CFURLCreateFromFileSystemRepresentation.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.c_long,
+            ctypes.c_bool,
+        ]
+        cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
+        cf.CFURLGetFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_void_p, ctypes.c_long]
+        cf.CFURLGetFileSystemRepresentation.restype = ctypes.c_bool
+        cf.CFRelease.argtypes = [ctypes.c_void_p]
+        cf.CFRelease.restype = None
+        resolver = security.SecTranslocateCreateOriginalPathForURL
+        resolver.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p)]
+        resolver.restype = ctypes.c_void_p
+        encoded = os.fsencode(bundle)
+        url = cf.CFURLCreateFromFileSystemRepresentation(None, encoded, len(encoded), True)
+        if not url:
+            return bundle
+        error = ctypes.c_void_p()
+        original = resolver(url, ctypes.byref(error))
+        if original:
+            buffer = ctypes.create_string_buffer(32768)
+            if cf.CFURLGetFileSystemRepresentation(original, True, buffer, len(buffer)):
+                return Path(os.fsdecode(buffer.value))
+    except (OSError, AttributeError, ValueError):
+        pass
+    finally:
+        if cf:
+            for value in (original, url, error.value if error else None):
+                if value:
+                    cf.CFRelease(value)
+    return bundle
+
+
 def running_bundle():
     if not getattr(sys, "frozen", False):
         return None
-    return Path(sys.executable).resolve().parents[2]
+    return original_bundle_path(Path(sys.executable).resolve().parents[2])
 
 
 def installed_location(bundle):
-    return (
-        bundle.parent in (Path("/Applications"), Path.home() / "Applications") and bundle.name == "Lecture Caption.app"
+    # A renamed app or an app in an Applications subfolder is already installed.
+    path = bundle.resolve()
+    return path.suffix == ".app" and any(
+        root.resolve() in path.parents for root in (Path("/Applications"), Path.home() / "Applications")
     )
 
 
@@ -54,7 +104,9 @@ def launch_installed(target):
     pid = os.getpid()
     command = (
         f"for i in $(seq 1 120); do kill -0 {pid} 2>/dev/null || break; sleep 1; done; "
-        f"kill -0 {pid} 2>/dev/null && exit 1; exec /usr/bin/open " + shlex.quote(str(target))
+        f"kill -0 {pid} 2>/dev/null && exit 1; exec /usr/bin/open "
+        + shlex.quote(str(target))
+        + " --args --lecture-installed-launch"
     )
     subprocess.Popen(
         ["/bin/sh", "-c", command], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
@@ -64,7 +116,12 @@ def launch_installed(target):
 def ensure_installed():
     """Return True to continue here, False after handing off to an installed copy."""
     source = running_bundle()
-    if source is None or installed_location(source) or "--preview" in sys.argv:
+    if (
+        source is None
+        or installed_location(source)
+        or "--preview" in sys.argv
+        or "--lecture-installed-launch" in sys.argv
+    ):
         return True
     from PySide6.QtWidgets import QMessageBox
 

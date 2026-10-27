@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.4 — 2026-10-26
+- Resolve the original bundle path under macOS App Translocation before deciding whether installation is needed or launching an update.
+- Skip the installation prompt for Applications subfolders/renamed apps, and add a one-launch handoff guard to prevent reopening loops if path resolution is unavailable.
+
 ## 2.4.3 — 2026-10-26
 - Offer one-click installation into Applications on first launch from Downloads, before setup, capture or update workers start. Validate the copy and reopen it; preserve original files and never overwrite an existing installation.
 - Existing installations can be opened directly for normal updates. Cancellation/failure allows continued use, with a manual-install fallback.

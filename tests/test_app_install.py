@@ -12,7 +12,8 @@ class AppInstallTests(unittest.TestCase):
         self.assertTrue(app_install.installed_location(Path("/Applications/Lecture Caption.app")))
         self.assertTrue(app_install.installed_location(Path.home() / "Applications/Lecture Caption.app"))
         self.assertFalse(app_install.installed_location(Path("/tmp/Lecture Caption.app")))
-        self.assertFalse(app_install.installed_location(Path("/Applications/Lecture Caption 2.app")))
+        self.assertTrue(app_install.installed_location(Path("/Applications/Lecture Caption 2.app")))
+        self.assertTrue(app_install.installed_location(Path("/Applications/Study/Lecture Caption.app")))
         self.assertIsNone(app_install.running_bundle())
         self.assertTrue(app_install.ensure_installed())
 
@@ -68,3 +69,31 @@ class AppInstallTests(unittest.TestCase):
         self.assertIn("kill -0", command)
         self.assertIn("exec /usr/bin/open '/Applications/Lecture Caption.app'", command)
         self.assertTrue(launch.call_args.kwargs["start_new_session"])
+
+    def test_translocated_installed_app_skips_dialog_and_reopen_guard_stops_loop(self):
+        from unittest.mock import Mock
+
+        executable = (
+            "/private/var/folders/test/AppTranslocation/uuid/d/Lecture Caption.app/Contents/MacOS/Lecture Caption"
+        )
+        with (
+            patch.object(app_install.sys, "frozen", True, create=True),
+            patch.object(app_install.sys, "executable", executable),
+            patch.object(app_install, "original_bundle_path", return_value=Path("/Applications/Lecture Caption.app")),
+        ):
+            self.assertEqual(app_install.running_bundle(), Path("/Applications/Lecture Caption.app"))
+            with patch("PySide6.QtWidgets.QMessageBox") as dialog:
+                self.assertTrue(app_install.ensure_installed())
+                dialog.assert_not_called()
+        with (
+            patch.object(app_install, "running_bundle", return_value=Path(executable).parents[2]),
+            patch.object(app_install.sys, "argv", ["app", "--lecture-installed-launch"]),
+            patch("PySide6.QtWidgets.QMessageBox") as dialog,
+        ):
+            self.assertTrue(app_install.ensure_installed())
+            dialog.assert_not_called()
+
+    def test_untranslocated_download_is_not_mistaken_for_installed(self):
+        path = Path("/tmp/Downloads/Lecture Caption.app")
+        self.assertEqual(app_install.original_bundle_path(path), path)
+        self.assertFalse(app_install.installed_location(path))
