@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.5 — 2026-10-26
+- Distribute official macOS assets with Developer ID Application signing, Hardened Runtime, secure timestamps and an accepted stapled Apple notarization ticket.
+- Keep signing identities and notarization authorization in the local Keychain; prevent unsigned CI artifacts being published as official releases.
+- Require matching Developer ID team and notarization validation for updates from an already Developer ID-signed installation.
+
 ## 2.4.4 — 2026-10-26
 - Resolve the original bundle path under macOS App Translocation before deciding whether installation is needed or launching an update.
 - Skip the installation prompt for Applications subfolders/renamed apps, and add a one-launch handoff guard to prevent reopening loops if path resolution is unavailable.

@@ -1,6 +1,6 @@
 [project]
 name = "lecture-caption"
-version = "2.4.4"
+version = "2.4.5"
 description = "macOS bilingual lecture captions and live Markdown notes with Apple local or cloud processing"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -13,3 +13,6 @@ line-length = 120
 [tool.ruff.lint]
 select = ["F"]
 ignore = ["F401"]
+
+[tool.lecture-caption]
+release-signing = "developer-id"

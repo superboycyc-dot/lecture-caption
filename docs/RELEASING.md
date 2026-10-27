@@ -20,4 +20,4 @@ Official corresponding source repositories: [PySide/Shiboken](https://code.qt.io
 
 ## Signing
 
-Current releases are ad-hoc signed. Do not describe them as Developer ID signed or notarized. Future notarization requires the human owner to provide an Apple Developer setup and authorize its use. Never commit certificates, provisioning secrets or Apple credentials.
+Versions through 2.4.4 remain ad-hoc signed. Starting with 2.4.5, official assets require Developer ID Application signing and accepted Apple notarization, stapling and Gatekeeper validation. See DEVELOPER_ID.md. The tagged workflow validates source/build but intentionally does not publish its ad-hoc CI artifact; the verified notarized maintainer build is published against the same tag. Never commit certificates, provisioning secrets or Apple credentials.

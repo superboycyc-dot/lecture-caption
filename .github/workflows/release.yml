@@ -29,7 +29,20 @@ jobs:
       - run: python scripts/build_app.py
       - run: '"dist/Lecture Caption.app/Contents/MacOS/Lecture Caption" --preview'
       - run: python scripts/package_release.py
+      - name: Determine release signing policy
+        id: signing
+        run: |
+          python - <<'PYCODE' >> "$GITHUB_OUTPUT"
+          import tomllib
+          data = tomllib.load(open('pyproject.toml', 'rb'))
+          required = data.get('tool', {}).get('lecture-caption', {}).get('release-signing') == 'developer-id'
+          print('developer_id=' + str(required).lower())
+          PYCODE
+      - name: Signed release handoff
+        if: steps.signing.outputs.developer_id == 'true'
+        run: echo "This runner validates source/build only. Release assets must be Developer ID signed, notarized and verified on the maintainer Mac; do not publish this CI ad-hoc bundle." >> "$GITHUB_STEP_SUMMARY"
       - name: Publish versioned release assets
+        if: steps.signing.outputs.developer_id != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

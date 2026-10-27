@@ -2,9 +2,18 @@
 
 from pathlib import Path
 import platform
+import os
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def sign_native(path, identifier):
+    identity = os.environ.get("LECTURE_CODESIGN_IDENTITY") or "-"
+    command = ["codesign", "--force", "--sign", identity, "--identifier", identifier]
+    if identity != "-":
+        command += ["--timestamp", "--options", "runtime"]
+    subprocess.run(command + [str(path)], check=True)
 
 
 def main():
@@ -44,18 +53,7 @@ def main():
         for framework in frameworks:
             command += ["-framework", framework]
         subprocess.run(command, check=True)
-        subprocess.run(
-            [
-                "codesign",
-                "--force",
-                "--sign",
-                "-",
-                "--identifier",
-                f"local.lecturecaption.{name.lower()}",
-                str(output / name),
-            ],
-            check=True,
-        )
+        sign_native(output / name, f"local.lecturecaption.{name.lower()}")
 
     permissions = output / "Permissions.dylib"
     subprocess.run(
@@ -75,10 +73,7 @@ def main():
         ],
         check=True,
     )
-    subprocess.run(
-        ["codesign", "--force", "--sign", "-", "--identifier", "local.lecturecaption.permissions", str(permissions)],
-        check=True,
-    )
+    sign_native(permissions, "local.lecturecaption.permissions")
 
 
 if __name__ == "__main__":
