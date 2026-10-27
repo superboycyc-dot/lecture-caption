@@ -94,3 +94,17 @@ class ProviderRetryTests(TestCase):
         with self.assertRaises(core.RequestCancelled):
             api.post("https://synthetic.invalid", "/audio/transcriptions")
         self.assertEqual(api.session.post.call_count, 1)
+
+    def test_capture_cancelled_at_end_of_cooldown_does_not_upload(self):
+        epoch = [1]
+        api = core.Cloud("synthetic", core.DEFAULTS, capture_epoch=lambda: epoch[0])
+        api.cooldowns[("https://synthetic.invalid", "")] = core.time.monotonic() + 10
+        api.session.post = Mock()
+
+        def cancel_after_wait(*_):
+            epoch[0] = 2
+
+        api.retry_wait = cancel_after_wait
+        with self.assertRaises(core.RequestCancelled):
+            api.post("https://synthetic.invalid", "/audio/transcriptions")
+        api.session.post.assert_not_called()

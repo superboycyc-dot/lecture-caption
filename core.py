@@ -136,6 +136,8 @@ class Cloud:
                         f"{stage}：429 限流，约 {math.ceil(remaining)} 秒后重试", retryable=True, retry_after=remaining
                     )
                 self.retry_wait(remaining, path, epoch)
+            if not self.request_current(path, epoch):
+                raise RequestCancelled("请求已取消")
             try:
                 r = self.session.post(
                     base.rstrip("/") + path,
