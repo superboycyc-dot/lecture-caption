@@ -309,6 +309,7 @@ class Controls(QWidget):
         self.paused = False
         self.finishing = False
         self.lecture_ended = False
+        self.default_pdf_dir = config.get("default_pdf_dir", str(Path.home() / "Desktop"))
         self.last_export_dir = config.get("last_export_dir", str(Path.home() / "Documents"))
         self.staged_update = None
         self.update_busy = False
@@ -429,6 +430,7 @@ class Controls(QWidget):
         self.notes.content_changed.connect(self.refresh_end_button)
         self.sig.notes.connect(lambda *_: self.refresh_end_button())
         self.sig.note_status.connect(self.notes.note_status)
+        self.sig.note_status.connect(self.status.setText)
         self.sig.error.connect(self.error)
         self.sig.capture_failed.connect(self.capture_failed)
         self.sig.input_failed.connect(self.on_input_failed)
@@ -451,6 +453,8 @@ class Controls(QWidget):
         self.quota_timer.timeout.connect(self.refresh_quota)
         self.quota_timer.start(3000)
         self.notes_on.toggled.connect(self.refresh_quota)
+        self.notes_on.toggled.connect(self.show_notes_mode)
+        self.show_notes_mode()
         self.refresh_quota()
         self.usage_network_info = None
         try:
@@ -509,7 +513,24 @@ class Controls(QWidget):
         self.speech_prepare = QPushButton("一键准备当前模式所需权限与语言资源")
         self.speech_prepare.clicked.connect(lambda: self.show_setup("permissions"))
         body.addWidget(self.speech_prepare)
-        hint = QLabel("复杂参数已使用推荐默认值。无需分别申请权限或逐个准备资源。")
+        apple_row = QHBoxLayout()
+        for title, action in (
+            ("下载英文识别资源", self.prepare_speech),
+            ("下载英中翻译语言包", self.prepare_translation),
+            (
+                "打开系统听写设置",
+                lambda: QDesktopServices.openUrl(
+                    QUrl("x-apple.systempreferences:com.apple.Keyboard-Settings.extension")
+                ),
+            ),
+        ):
+            button = QPushButton(title)
+            button.clicked.connect(action)
+            apple_row.addWidget(button)
+        body.addLayout(apple_row)
+        hint = QLabel(
+            "推荐先一键准备。英文识别与英中翻译是两套资源；出现下载窗口时请完成下载。旧系统请在听写设置添加英语（美国）。"
+        )
         hint.setWordWrap(True)
         body.addWidget(hint)
         form = QFormLayout()
@@ -519,6 +540,14 @@ class Controls(QWidget):
         self.key = QLineEdit(os.environ.get("GROQ_API_KEY", ""))
         self.key.setEchoMode(QLineEdit.Password)
         self.key.setPlaceholderText("自动读取已保存 key，或粘贴新 key")
+        pdf_row = QHBoxLayout()
+        self.pdf_directory = QLineEdit(self.default_pdf_dir)
+        self.pdf_directory.setReadOnly(True)
+        pdf_row.addWidget(self.pdf_directory, 1)
+        pdf_choose = QPushButton("更改…")
+        pdf_choose.clicked.connect(self.choose_pdf_directory)
+        pdf_row.addWidget(pdf_choose)
+        form.addRow("PDF 自动保存位置", pdf_row)
         form.addRow("Groq API key", self.key)
         self.test = QPushButton("验证并保存 key")
         self.test.clicked.connect(self.test_key)
@@ -803,6 +832,7 @@ class Controls(QWidget):
             "opacity": self.opacity_slider.value(),
             "revise_interval": self.revise_interval.currentData(),
             "last_export_dir": self.last_export_dir,
+            "default_pdf_dir": self.default_pdf_dir,
             "auto_update": self.auto_update.isChecked(),
             "onboarding_seen": self.onboarding_seen,
             "onboarding_flow_version": self.onboarding_flow_version,
@@ -824,6 +854,7 @@ class Controls(QWidget):
             "display_mode",
             "opacity",
             "last_export_dir",
+            "default_pdf_dir",
             "auto_update",
             "onboarding_seen",
             "onboarding_flow_version",
@@ -868,9 +899,25 @@ class Controls(QWidget):
         )
         self.capture_indicator.setAccessibleName(self.capture_indicator.toolTip())
 
+    def show_notes_mode(self, *_):
+        enabled = self.notes_on.isChecked()
+        self.notes.summary_action.setText("立即整理" if enabled else "立即整理（自动笔记已关闭）")
+        self.notes.preview.setPlaceholderText(
+            "笔记整理\n\n开始收音后自动生成笔记，也可以直接输入。"
+            if enabled
+            else "自动笔记已关闭\n\n在设置中勾选‘自动整理并保存 Markdown 笔记（Groq）’启用。\n本次已识别内容可通过右上角 ⋯ → 立即整理补充。"
+        )
+        if not enabled:
+            self.status.setText("自动笔记已关闭；设置中开启，或点 ⋯ → 立即整理。")
+        elif not self.engine.active:
+            self.status.setText("自动笔记已开启 · 收音后约每 45 秒整理一次。")
+
     def on_status(self, message):
         if message.startswith("●"):
-            self.status.clear()
+            if self.notes_on.isChecked():
+                self.status.clear()
+            else:
+                self.status.setText("正在收音；自动笔记已关闭，可在设置中开启。")
         else:
             self.status.setText(message)
 
@@ -929,14 +976,14 @@ class Controls(QWidget):
         self.sync_capture_controls()
 
     def prepare_speech(self):
-        from local_services import prepare_speech
+        from local_services import prepare_local_resources
 
         self.speech_prepare.setEnabled(False)
         self.status.setText("正在检查/准备 Apple 英文语音资源，首次下载可能需要几分钟…")
 
         def run():
             try:
-                self.sig.speech_ready.emit(True, prepare_speech())
+                self.sig.speech_ready.emit(True, prepare_local_resources(speech=True, translation=False))
             except RuntimeError as error:
                 self.sig.speech_ready.emit(False, str(error))
 
@@ -1155,6 +1202,32 @@ class Controls(QWidget):
         self.stop_button.setEnabled(False)
         self.status.setText("正在完成最后整理并保留备份，随后选择另存位置…")
 
+    def choose_pdf_directory(self):
+        directory = QFileDialog.getExistingDirectory(self.settings, "选择 PDF 自动保存位置", self.default_pdf_dir)
+        if directory:
+            self.default_pdf_dir = directory
+            self.pdf_directory.setText(directory)
+            self.save_preferences()
+
+    def autosave_pdf(self, source, title):
+        import tempfile
+        import datetime
+
+        directory = Path(self.default_pdf_dir).expanduser()
+        # Never overwrite an earlier lecture, even when titles repeat.
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        target = directory / (title + "-" + stamp + ".pdf")
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=directory, prefix=".lecture-", suffix=".pdf", delete=False) as stream:
+                temporary = Path(stream.name)
+            export_pdf(source, temporary)
+            temporary.replace(target)
+        finally:
+            if temporary:
+                temporary.unlink(missing_ok=True)
+        return target
+
     def finish_ready(self, ok, path):
         self.finishing = False
         self.lecture_ended = True
@@ -1166,10 +1239,17 @@ class Controls(QWidget):
             self.status.setText("整理完成，备份已保存。")
         if not path:
             return
-        kind = choose_export_format(self)
+        title = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", self.engine.note_title).strip(" .")[:60] or "课程笔记"
+        try:
+            automatic = self.autosave_pdf(Path(path).read_text(encoding="utf-8"), title)
+            notice = "PDF 已自动保存至默认位置\n" + str(automatic)
+            self.status.setText("PDF 已自动保存；应用内 Markdown 备份仍保留。")
+        except (OSError, RuntimeError):
+            notice = "PDF 自动保存失败，请检查默认目录权限，或选择另存为 PDF。\n应用内 Markdown 备份仍保留。"
+            self.status.setText("PDF 自动保存失败；Markdown 备份已保留。")
+        kind = choose_export_format(self, notice)
         if kind is None:
             return
-        title = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", self.engine.note_title).strip(" .")[:60] or "课程笔记"
         destination, _ = QFileDialog.getSaveFileName(
             self,
             "另存本次课程笔记（应用内备份仍保留）",
@@ -1403,10 +1483,14 @@ if __name__ == "__main__":
                 "# 二叉搜索树\n\n## 核心定义\n\n- 左子树的键小于当前节点，右子树的键大于当前节点。\n\n## 时间复杂度\n\n- 查找代价取决于树高 $h$。\n\n> 界面示例，非真实课堂转写。",
                 "界面示例",
             )
-            QTimer.singleShot(350, lambda: main.grab().save(str(DATA_ROOT / "logs/workspace-preview.png")))
+
+            def save_preview():
+                main.grab().save(str(DATA_ROOT / "logs/workspace-preview.png"))
+                main.close()
+
+            QTimer.singleShot(350, save_preview)
 
         QTimer.singleShot(1000, capture_preview)
-        QTimer.singleShot(2200, main.close)
     result = app.exec()
     from PySide6.QtCore import QCoreApplication, QEvent
 

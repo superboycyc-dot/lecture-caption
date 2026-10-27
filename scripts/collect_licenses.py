@@ -7,6 +7,16 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = [
+    "matplotlib",
+    "contourpy",
+    "cycler",
+    "fonttools",
+    "kiwisolver",
+    "packaging",
+    "pillow",
+    "pyparsing",
+    "python-dateutil",
+    "six",
     "certifi",
     "cffi",
     "charset-normalizer",

@@ -34,6 +34,8 @@ from PySide6.QtWidgets import (
     QWidgetAction,
 )
 
+from math_render import protect_math, render_math, restore_math, insert_math, MATH_SOURCE
+
 HIGHLIGHT = "#FFF1A6"
 
 
@@ -99,7 +101,9 @@ def markdown_document(source, document=None):
         "body {color:#1C1C1E;} table {border-collapse:collapse;} td,th {padding:5px;border:1px solid #D9E4F2;}"
     )
     escaped = "\ue0fa\ue0fb"
-    document.setMarkdown(protect_escaped_highlights(source, escaped))
+    protected, expressions = protect_math(source)
+    document.setMarkdown(protect_escaped_highlights(protected, escaped))
+    render_math(document, expressions)
     apply_highlights(document)
     cursor = document.find(escaped)
     while not cursor.isNull():
@@ -111,6 +115,7 @@ def markdown_document(source, document=None):
 def rich_markdown(document):
     """Qt omits background formatting from Markdown; restore == spans in a clone."""
     clone = document.clone()
+    formulas = restore_math(clone)
     literal = "\ue110\ue111"
     block = clone.begin()
     escapes = []
@@ -148,7 +153,10 @@ def rich_markdown(document):
         cursor.insertText("==", QTextCharFormat())
         cursor.setPosition(start)
         cursor.insertText("==", QTextCharFormat())
-    return clone.toMarkdown(QTextDocument.MarkdownDialectGitHub).strip().replace(literal, r"\==")
+    result = clone.toMarkdown(QTextDocument.MarkdownDialectGitHub).strip().replace(literal, r"\==")
+    for token, original in formulas.items():
+        result = result.replace(token, original)
+    return result
 
 
 def export_pdf(source, destination):
@@ -168,17 +176,20 @@ def export_pdf(source, destination):
         raise OSError("PDF export failed")
 
 
-def choose_export_format(parent):
+def choose_export_format(parent, notice="PDF 已自动保存至默认位置"):
     dialog = QDialog(parent)
     dialog.setWindowTitle("保存本次笔记")
     layout = QVBoxLayout(dialog)
-    layout.addWidget(QLabel("选择格式，再选择保存位置。应用内备份仍然保留。"))
+    label = QLabel(notice)
+    label.setWordWrap(True)
+    label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+    layout.addWidget(label)
     result = [None]
-    for title, kind in (("保存 Markdown · 方便继续编辑", "md"), ("导出 PDF · 方便阅读与分享", "pdf")):
+    for title, kind in (("另存为 MD", "md"), ("另存为 PDF", "pdf")):
         button = QPushButton(title)
         button.clicked.connect(lambda _, value=kind: (result.__setitem__(0, value), dialog.accept()))
         layout.addWidget(button)
-    cancel = QPushButton("取消")
+    cancel = QPushButton("完成")
     cancel.clicked.connect(dialog.reject)
     layout.addWidget(cancel)
     dialog.exec()
@@ -195,6 +206,26 @@ def before_cursor(cursor):
 
 class RichMarkdownEdit(QTextEdit):
     command = Signal(str)
+
+    def mouseDoubleClickEvent(self, event):
+        cursor = self.cursorForPosition(event.position().toPoint())
+        position = cursor.position()
+        for start in (position, position - 1):
+            if start < 0:
+                continue
+            cursor.setPosition(start)
+            cursor.setPosition(start + 1, QTextCursor.KeepAnchor)
+            original = cursor.charFormat().property(MATH_SOURCE)
+            if original and cursor.charFormat().isImageFormat():
+                from PySide6.QtWidgets import QInputDialog
+
+                edited, ok = QInputDialog.getMultiLineText(
+                    self, "编辑公式", "保留公式分隔符，例如 \\[ ... \\]：", original
+                )
+                if ok and edited.strip():
+                    insert_math(cursor, edited.strip())
+                return
+        super().mouseDoubleClickEvent(event)
 
     def event(self, event):
         if event.type() == QEvent.ShortcutOverride and self.command_for(event):
@@ -436,16 +467,24 @@ class NotesPane(QWidget):
         self.focus_timer = QTimer(self)
         self.focus_timer.setSingleShot(True)
         self.focus_timer.timeout.connect(self.leave_editor)
+        self.edit_idle_timer = QTimer(self)
+        self.edit_idle_timer.setSingleShot(True)
+        self.edit_idle_timer.setInterval(2500)
+        self.edit_idle_timer.timeout.connect(self.resume_after_edit)
 
     def eventFilter(self, watched, event):
-        if event.type() == QEvent.FocusIn:
-            with self.engine.notes_lock:
-                if not self.engine.notes_editing:
-                    self.engine.document_revision += 1
-                self.engine.notes_editing = True
-        elif event.type() == QEvent.FocusOut:
+        if event.type() == QEvent.FocusOut:
             self.focus_timer.start(0)
         return super().eventFilter(watched, event)
+
+    def resume_after_edit(self):
+        if not self.flush_edits():
+            return
+        with self.engine.notes_lock:
+            self.engine.notes_editing = False
+            waiting = bool(self.engine.pending)
+        if waiting:
+            self.engine.force_notes.set()
 
     def leave_editor(self):
         from PySide6.QtWidgets import QApplication
@@ -458,6 +497,7 @@ class NotesPane(QWidget):
             self.engine.force_notes.set()
 
     def end_editing(self):
+        self.edit_idle_timer.stop()
         if not self.flush_edits():
             return False
         self.preview.clearFocus()
@@ -476,6 +516,7 @@ class NotesPane(QWidget):
         self.has_content = True
         self.content_changed.emit()
         self.timer.start()
+        self.edit_idle_timer.start()
 
     def markdown(self):
         if not self.dirty:

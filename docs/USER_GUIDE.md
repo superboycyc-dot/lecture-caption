@@ -54,3 +54,14 @@ Notes now edit in place. The toolbar contains title, bold/italic/headings/lists/
 The first-run agreement explicitly includes numeric usage sharing, with a visible disclosure. It starts unchecked and must be checked to continue; no second choice is needed. Sharing can later be withdrawn in Settings. Only future recording counts, active capture duration and source/translation word/character lengths are recorded; no content, credentials or stable device identifier is sent. Pause/resume stays one lecture and revised paragraphs replace prior length counts. SQLite retains unacknowledged snapshots for later retry, including after relaunch. No background OS launch service is installed. Opt-out clears local queue rows; in-flight requests may already have reached the receiver. Funnel/upstream diagnostics may see IP addresses.
 
 The v2.4.0 public HTTPS receiver passed [independent tailnet-external acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895). Ordinary users need no Tailscale or custom server address. Sharing remains off by default and only starts after explicit consent; status is visible in Settings.
+
+
+## 2.4.2 workflow updates
+
+Finish retains the internal Markdown backup and automatically writes a timestamped PDF to Desktop by default. Change the automatic PDF folder in Settings. The completion dialog offers Save As MD, Save As PDF, or Done; a write failure is reported without claiming success. Save As remembers its own directory.
+
+Common TeX math using `\[...\]`, `\(...\)`, `$$...$$`, or `$...$` is rendered offline and embedded in PDFs. Double-click a formula or edit source Markdown; original math syntax survives Markdown export. Unsupported macros remain literal source (the renderer supports a TeX subset).
+
+Groq setup shows a fixed key name (`Lecture Caption`), No expiration, and a reminder to copy the generated key. Apple speech and translation resources are prepared independently; retry/download controls are available after Groq setup and in Settings. On macOS 15–25, use Keyboard → Dictation for English (US) assets; macOS 26+ supports in-app speech asset installation.
+
+Groq recognition/translation does not enable automatic notes. Enable automatic Markdown notes in Settings; use the notes menu's immediate summary to process recognized text still held in the current session. Disabled state and provider failures are now visible. Merely focusing the editor no longer blocks summaries; real edits defer them until saved and idle.

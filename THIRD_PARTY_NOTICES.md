@@ -15,3 +15,6 @@ Python, PySide6/Qt, Shiboken, NumPy, SciPy, python-sounddevice/PortAudio, Reques
 Qt/PySide/Shiboken are used under the LGPLv3 alternative. Copyright belongs to The Qt Company Ltd. and its contributors. Complete LGPLv3 and GPLv3 texts accompany the distribution in `licenses/`. They are dynamically bundled, and users may replace compatible libraries or rebuild the open application; see `docs/RELEASING.md`. Official matching-version source: [PySide/Shiboken](https://code.qt.io/pyside/pyside-setup.git/) and [Qt base](https://code.qt.io/qt/qtbase.git/).
 
 The PyInstaller bootloader uses its GPL license with a distribution exception; its notice is retained. Native Apple frameworks are system dependencies, not redistributed copies. No AI model weights are bundled; use of cloud services and models is governed by the selected provider's terms. No affiliation with Apple, Groq or the upstream authors is implied.
+
+
+Offline formula rendering uses Matplotlib and its pinned runtime dependencies (including Pillow, contourpy, cycler, fontTools, kiwisolver, packaging, pyparsing, python-dateutil, and six). Their distribution license and copyright notices are retained in `licenses/` and bundled with the app. Formula rendering uses the internal mathtext parser, without a separate TeX installation or online service.

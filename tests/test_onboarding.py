@@ -104,6 +104,32 @@ class OnboardingTests(TestCase):
         self.assertTrue(self.win.notes_on.isChecked())
         self.assertFalse(self.win.engine.active)
 
+    def test_backup_retry_after_groq_keeps_cloud_profile_and_reports_results(self):
+        self.win.show_setup()
+        wizard = self.win.onboarding
+        wizard.begin_cloud()
+        self.wait(lambda: not wizard.busy)
+        wizard.key.setText("synthetic-onboarding-key")
+        with patch.object(onboarding, "validate_groq_key"):
+            wizard.submit_key()
+            self.wait(lambda: not wizard.busy)
+        with patch.object(
+            local_services, "prepare_local_resources", side_effect=RuntimeError("English needs download")
+        ):
+            wizard.prepare_apple_backup()
+            self.wait(lambda: not wizard.busy)
+        self.assertIn("English needs download", wizard.backup_label.text())
+        self.assertFalse(wizard.apple_prepared)
+        with patch.object(local_services, "prepare_local_resources", return_value="both ready") as resources:
+            wizard.prepare_apple_backup()
+            self.wait(lambda: not wizard.busy)
+            resources.assert_called_once_with(speech=True, translation=True)
+        self.assertTrue(wizard.apple_prepared)
+        self.assertEqual(wizard.pages.currentWidget(), wizard.ready)
+        self.assertEqual(self.win.stt_backend.currentData(), "cloud")
+        self.assertTrue(self.win.notes_on.isChecked())
+        self.assertFalse(self.win.engine.active)
+
     def test_failed_key_can_retry_without_starting_capture(self):
         self.win.show_setup()
         wizard = self.win.onboarding
@@ -141,7 +167,7 @@ class OnboardingTests(TestCase):
             wizard.submit_key()
             self.wait(lambda: not wizard.busy)
         self.assertEqual(wizard.pages.currentWidget(), wizard.ready)
-        self.assertIn("备用资源尚未就绪", wizard.ready_label.text())
+        self.assertIn("接下来请配置 Apple 本地备用", wizard.backup_label.text())
         self.assertFalse(self.win.engine.active)
 
     def test_default_settings_hide_customize_and_keep_source_mode_when_preparing_permissions(self):

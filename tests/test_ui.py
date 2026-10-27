@@ -197,7 +197,9 @@ class UiTests(unittest.TestCase):
             win.sig.capture_state.emit(win.engine.gen, "recording", "")
             win.sig.status.emit("● 收音中")
             self.assertEqual(win._capture_state, "recording")
-            self.assertEqual(win.status.text(), "")
+            self.assertEqual(
+                win.status.text(), "" if win.notes_on.isChecked() else "正在收音；自动笔记已关闭，可在设置中开启。"
+            )
 
             def stop():
                 win.engine.active = False
@@ -294,11 +296,15 @@ class UiTests(unittest.TestCase):
             exported = root / "next.md"
             backup = win.engine.session_dir / "notes.md"
             with patch.object(caption.QFileDialog, "getSaveFileName", return_value=(str(exported), "")) as save:
+                win.default_pdf_dir = str(root / "automatic")
+                Path(win.default_pdf_dir).mkdir(exist_ok=True)
                 win.finish_ready(True, str(backup))
             self.assertEqual(exported.read_text(), backup.read_text())
             self.assertEqual(win.last_export_dir, str(root))
             self.assertIn("二叉树与不变量.md", save.call_args.args[2])
             with patch.object(caption.QFileDialog, "getSaveFileName", return_value=("", "")) as save:
+                win.default_pdf_dir = str(root / "automatic")
+                Path(win.default_pdf_dir).mkdir(exist_ok=True)
                 win.finish_ready(True, str(backup))
             self.assertTrue(save.call_args.args[2].startswith(str(root)))
             self.assertTrue(backup.exists())
@@ -335,6 +341,8 @@ class UiTests(unittest.TestCase):
                 patch.object(caption, "choose_export_format", return_value="pdf"),
                 patch.object(caption.QFileDialog, "getSaveFileName", return_value=(str(pdf), "PDF (*.pdf)")) as choose,
             ):
+                win.default_pdf_dir = str(root / "automatic")
+                Path(win.default_pdf_dir).mkdir(exist_ok=True)
                 win.finish_ready(True, str(backup))
             self.assertTrue(pdf.read_bytes().startswith(b"%PDF-"))
             self.assertTrue(choose.call_args.args[2].endswith(".pdf"))
@@ -343,9 +351,26 @@ class UiTests(unittest.TestCase):
                 patch.object(caption, "choose_export_format", return_value=None),
                 patch.object(caption.QFileDialog, "getSaveFileName") as choose,
             ):
+                win.default_pdf_dir = str(root / "automatic")
+                Path(win.default_pdf_dir).mkdir(exist_ok=True)
                 win.finish_ready(True, str(backup))
                 choose.assert_not_called()
             self.assertEqual(backup.read_bytes(), original)
+            automatic = list(Path(win.default_pdf_dir).glob("*.pdf"))
+            self.assertEqual(len(automatic), 2)
+            self.assertTrue(all(p.read_bytes().startswith(b"%PDF-") for p in automatic))
+            with patch.object(caption, "choose_export_format", return_value=None) as choice:
+                win.default_pdf_dir = str(root / "does-not-exist")
+                win.finish_ready(True, str(backup))
+                self.assertIn("自动保存失败", choice.call_args.args[1])
+            self.assertEqual(backup.read_bytes(), original)
+            with patch.object(caption.QFileDialog, "getExistingDirectory", return_value=str(root)):
+                win.choose_pdf_directory()
+            self.assertEqual(win.default_pdf_dir, str(root))
+            self.assertEqual(win.pdf_directory.text(), str(root))
+            import json
+
+            self.assertEqual(json.loads((caption.DATA_ROOT / "config.json").read_text())["default_pdf_dir"], str(root))
             win.close()
 
     def test_manual_summary_does_not_enable_automatic_cloud_notes(self):

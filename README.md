@@ -6,13 +6,13 @@ English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) �
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Stable release **2.4.1** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. The app is ad-hoc signed, not Apple notarized.
+> Stable release **2.4.2** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. The app is ad-hoc signed, not Apple notarized.
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Version 2.4.1 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
+Version 2.4.2 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
 
 ## Features
 
@@ -29,7 +29,9 @@ Version 2.4.1 adds **numeric usage sharing**, enabled only after the explicit fi
 
 ## Install
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.1-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.1/LectureCaption-2.4.1-macOS-arm64.zip)
+> 🔴 **macOS may block the first launch. Follow the [illustrated opening guide](docs/INSTALL.zh-CN.md) before continuing.**
+
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.2-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.2/LectureCaption-2.4.2-macOS-arm64.zip)
 
 Click the blue button to download directly. No GitHub account required.
 

@@ -88,6 +88,19 @@ class EditorTests(TestCase):
         self.assertNotIn("**Invariant**", self.pane.preview.toPlainText())
         self.assertIn("**Invariant**", self.pane.markdown())
 
+    def test_focus_without_edit_does_not_block_notes_and_idle_edit_resumes(self):
+        self.pane.preview.setFocus()
+        self.app.processEvents()
+        self.assertFalse(self.engine.notes_editing)
+        self.pane.preview.insertPlainText("synthetic addition")
+        self.assertTrue(self.engine.notes_editing)
+        self.engine.pending = [("12:00", "synthetic lecture")]
+        self.engine.force_notes.clear()
+        self.pane.resume_after_edit()
+        self.assertFalse(self.engine.notes_editing)
+        self.assertFalse(self.pane.dirty)
+        self.assertIn("synthetic addition", self.pane.original)
+
     def test_ai_is_deferred_while_editing_and_does_not_override_unsaved_content(self):
         self.engine.replace_document("# 原笔记\n\n原定义")
         self.pane.set_document("# 原笔记\n\n原定义")

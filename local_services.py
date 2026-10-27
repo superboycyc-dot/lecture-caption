@@ -53,19 +53,36 @@ def request_system_audio_permission():
     return run_helper("SystemAudio", b"", timeout=120, arguments=("--permissions",))
 
 
+DICTATION_SETTINGS = "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
+
+
 def prepare_local_resources(speech=True, translation=True):
     if platform.system() != "Darwin" or int(platform.mac_ver()[0].split(".")[0]) < 15:
         raise ApiError("一键本地模式需要 macOS 15+；旧系统可选择 Groq。")
-    if speech and int(platform.mac_ver()[0].split(".")[0]) >= 26:
-        prepare_speech()
-    elif speech:
-        run_helper("LocalSpeech", b"", timeout=120, arguments=("--authorize",))
-        supported = run_helper("LocalSpeech", b"", arguments=("--check",))
-        if supported != "supported":
-            raise ApiError("此系统尚未提供英文离线听写资源，请在系统中安装英文听写或选择 Groq。")
+    errors = []
+    completed = []
+    if speech:
+        try:
+            if int(platform.mac_ver()[0].split(".")[0]) >= 26:
+                prepare_speech()
+            else:
+                run_helper("LocalSpeech", b"", timeout=120, arguments=("--authorize",))
+                supported = run_helper("LocalSpeech", b"", arguments=("--check",))
+                if supported != "supported":
+                    raise ApiError("请打开系统设置 → 键盘 → 听写，启用并添加英语（美国），等待资源下载后重试。")
+            completed.append("英文识别已就绪")
+        except RuntimeError as error:
+            errors.append("英文识别：" + str(error))
+    # Always attempt the independent translation download even if speech failed.
     if translation:
-        run_helper("LocalTranslate", b"", timeout=600, arguments=("--prepare-and-exit",))
-    return "本地识别和英中翻译已就绪，无需 API key。"
+        try:
+            run_helper("LocalTranslate", b"", timeout=600, arguments=("--prepare-and-exit",))
+            completed.append("英中翻译已就绪")
+        except RuntimeError as error:
+            errors.append("英中翻译：" + str(error))
+    if errors:
+        raise ApiError("；".join(completed + errors))
+    return "；".join(completed) + "。无需 API key。"
 
 
 def open_groq_setup():

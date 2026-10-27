@@ -46,6 +46,19 @@ class LocalTests(unittest.TestCase):
                 self.assertEqual(kwargs["input"], b"")
                 self.assertEqual(kwargs["timeout"], 600)
 
+    def test_speech_failure_still_opens_translation_download(self):
+        with (
+            patch.object(local_services.platform, "system", return_value="Darwin"),
+            patch.object(local_services.platform, "mac_ver", return_value=("26.0", (), "arm64")),
+            patch.object(local_services, "prepare_speech", side_effect=core.ApiError("missing English")),
+            patch.object(local_services, "run_helper", return_value="ready") as helper,
+        ):
+            with self.assertRaises(core.ApiError) as error:
+                local_services.prepare_local_resources()
+            helper.assert_called_once_with("LocalTranslate", b"", timeout=600, arguments=("--prepare-and-exit",))
+            self.assertIn("英中翻译已就绪", str(error.exception))
+            self.assertIn("missing English", str(error.exception))
+
     def test_helper_errors_never_echo_stderr_or_audio(self):
         with (
             tempfile.TemporaryDirectory() as tmp,
