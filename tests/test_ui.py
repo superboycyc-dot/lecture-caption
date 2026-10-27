@@ -356,6 +356,9 @@ class UiTests(unittest.TestCase):
                 win.finish_ready(True, str(backup))
                 choose.assert_not_called()
             self.assertEqual(backup.read_bytes(), original)
+            transcripts = list(Path(win.default_pdf_dir).glob("*-转录.md"))
+            self.assertEqual(len(transcripts), 2)
+            self.assertTrue(all(p.read_bytes() == (backup.parent / "transcript.md").read_bytes() for p in transcripts))
             automatic = list(Path(win.default_pdf_dir).glob("*.pdf"))
             self.assertEqual(len(automatic), 2)
             self.assertTrue(all(p.read_bytes().startswith(b"%PDF-") for p in automatic))
@@ -388,6 +391,30 @@ class UiTests(unittest.TestCase):
             self.assertTrue(win.engine.manual_summary.is_set())
             self.assertIn("需要整理的内容", win.engine.pending[0][1])
             self.assertTrue(win.stop_button.isEnabled())
+            win.close()
+
+    def test_note_failure_survives_capture_status_and_export_transcript(self):
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(caption, "CredentialStore", FakeStore):
+            win = caption.Controls()
+            self.wait(lambda: bool(win.key.text()))
+            win.engine.report_note_status("", failed=True)
+            self.wait(lambda: not win.note_failure.isHidden())
+            win.on_status("● 收音中")
+            self.assertFalse(win.note_failure.isHidden())
+            self.assertIn("Groq模型整理失败", win.status.text())
+            win.engine.report_note_status("正在重试")
+            self.assertFalse(win.note_failure.isHidden())
+            win.engine.report_note_status("成功", success=True)
+            self.wait(lambda: win.note_failure.isHidden())
+            win.engine.ensure_session()
+            win.engine.source_paragraphs[1] = ("10:00", "Synthetic original source")
+            target = Path(tmp) / "source.md"
+            with patch.object(caption.QFileDialog, "getSaveFileName", return_value=(str(target), "")):
+                win.save_transcript_button.click()
+            self.assertIn("Synthetic original source", target.read_text())
+            self.assertNotIn("尚待整理", target.read_text())
             win.close()
 
 

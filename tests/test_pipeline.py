@@ -93,11 +93,14 @@ class ApiTests(unittest.TestCase):
         api = core.Cloud("synthetic-secret", core.DEFAULTS)
         for status in (401, 403, 429, 500):
             with self.subTest(status=status):
-                api.session.post = Mock(return_value=Mock(status_code=status, ok=False, text="synthetic-secret"))
+                api.session.post = Mock(
+                    return_value=Mock(status_code=status, ok=False, text="synthetic-secret", headers={})
+                )
+                api.retry_wait = Mock()
                 with self.assertRaises(core.ApiError) as caught:
                     api.chat("model", "system", "content")
                 self.assertNotIn("synthetic-secret", str(caught.exception))
-                self.assertEqual(api.session.post.call_count, 1)
+                self.assertEqual(api.session.post.call_count, 3 if status in (429, 500) else 1)
 
     def test_no_speech_segments_filtered(self):
         api = core.Cloud("synthetic", core.DEFAULTS)

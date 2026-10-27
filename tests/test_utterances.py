@@ -162,12 +162,14 @@ class ContinuityTests(unittest.TestCase):
             api.chat.return_value = "## 定义与用途\n- Invariant must hold after each iteration."
             engine.api = api
             engine.force_notes.set()
-            self.wait(lambda: engine.sections[0].startswith("## 定义与用途"))
+            self.wait(lambda: len(engine.sections) == 2)
+            self.assertTrue(engine.sections[1].startswith("## 定义与用途"))
+            self.assertIn("An invariant remains true", engine.sections[0])
             payload = api.chat.call_args.args[2]
             self.assertIn("An invariant remains true", payload)
-            self.assertIn("Define an invariant", payload)
+            self.assertNotIn("Define an invariant", payload)
             self.assertIn("It must hold after each iteration", payload)
-            self.assertEqual(len(engine.sections), 1)
+            self.assertEqual(len(engine.sections), 2)
             engine.save_notes()
             source = (engine.session_dir / "transcript.md").read_text()
             self.assertIn("Define an invariant", source)

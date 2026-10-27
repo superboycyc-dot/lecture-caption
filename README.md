@@ -1,4 +1,6 @@
 <p align="center"><img src="assets/AppIcon.png" width="128" alt="Lecture Caption icon"></p>
+
+Version 2.4.6 appends new notes every 30 seconds and consolidates the entire accumulated document every five minutes. Ending a lecture saves the transcript Markdown beside the automatic PDF; “另存转录” also exports it. Provider failures remain visible until a successful notes request.
 <h1 align="center">Lecture Caption</h1>
 <p align="center">Follow the lecture. Keep the logic.<br>macOS 双语课堂字幕与实时 Markdown 笔记</p>
 
@@ -6,13 +8,13 @@ English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) �
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Stable release **2.4.5** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. Official release assets are Developer ID signed and Apple notarized (outside the Mac App Store).
+> Stable release **2.4.6** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. Official release assets are Developer ID signed and Apple notarized (outside the Mac App Store).
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Version 2.4.5 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
+Version 2.4.6 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
 
 ## Features
 
@@ -20,7 +22,7 @@ Version 2.4.5 adds **numeric usage sharing**, enabled only after the explicit fi
 - **One workspace:** notes left, caption history right; current segment highlighting, animated scroll, manual history browsing and return-to-latest. Settings open only when requested.
 - **Main-window controls:** Start/Stop, input source, live audio meter, clearly labeled local speech-API accounting. Opacity lives in Settings.
 - **Apple local captions:** optional on-device English recognition and English-to-Chinese translation (macOS 15+, installed language resources). With automatic notes off, no API key is needed. No silent cloud fallback.
-- **Live study notes:** continuously revised Chinese Markdown, normally every 45 seconds, emphasizing definitions, assumptions, arguments, algorithms and complexity.
+- **Live study notes:** continuously revised Chinese Markdown, normally appended every 30 seconds with whole-document consolidation every five minutes, emphasizing definitions, assumptions, arguments, algorithms and complexity.
 - **CS/math terminology:** supply course terms; uncertain formula details are explicitly requested to be marked for checking.
 - **macOS Keychain:** save your API key once; reload it at startup. No key in ordinary config or command arguments.
 - **Durable text:** local Markdown and transcript events; unfinished notes retain their source text. No raw audio is saved.
@@ -30,7 +32,7 @@ Version 2.4.5 adds **numeric usage sharing**, enabled only after the explicit fi
 ## Install
 
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.5-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.5/LectureCaption-2.4.5-macOS-arm64.zip)
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.6-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.6/LectureCaption-2.4.6-macOS-arm64.zip)
 
 Click the blue button to download directly. No GitHub account required.
 
@@ -119,7 +121,7 @@ Coherent captions now use borderless timestamped paragraphs: black source and bl
 
 Live selectors remain enabled during capture. Translation-only switches keep capture and ASR running and retranslate the current paragraph; source/ASR switches save the latest recognized draft, reconnect input and discard stale-generation results. Unrecognized tail audio may be lost during input reconnection and is marked. The level indicator is green while capturing, grey when idle and a red exclamation on device errors. Daily API allowance sits beside locally counted 24h speech requests, without duration/processing-time clutter. Return-to-latest is a 32px viewport overlay: appears when browsing older text and disappears at the bottom without resizing content.
 
-Notes now revise one coherent document, backed by a cumulative transcript.md. Long lectures send the full previous note document, about 18000 characters of recent whole transcript paragraphs, and all unprocessed text; the complete original stays on disk. Enabling notes sends this accumulated context, including earlier locally recorded content in the current lecture, to the configured notes API.
+Notes append new material approximately every 30 seconds and consolidate the entire accumulated document every five minutes. Incremental requests include at most 6000 characters of new whole transcript paragraphs and 2400 characters of recent notes, with an 1800-token output budget; a single unusually long paragraph can exceed the input batch target. Consolidation sends the full note document with a size-adjusted output budget (1800–6000 tokens). The complete transcript remains on disk. Enabling notes can send earlier unprocessed text in the current lecture to the configured notes API. Provider/account limits still apply to long lectures.
 
 
-Version 2.4.5 offers **Install to Applications and Open** on first launch from Downloads. macOS authorization is used if needed; the original download is retained. Existing installations are opened for normal updates instead of being overwritten. First-launch Gatekeeper confirmation remains a manual system step.
+Version 2.4.6 offers **Install to Applications and Open** on first launch from Downloads. macOS authorization is used if needed; the original download is retained. Existing installations are opened for normal updates instead of being overwritten. First-launch Gatekeeper confirmation remains a manual system step.
