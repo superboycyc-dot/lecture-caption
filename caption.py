@@ -1460,6 +1460,10 @@ if __name__ == "__main__":
     app.setOrganizationName("Lecture Caption")
     app.setQuitOnLastWindowClosed(False)
     app.setWindowIcon(QIcon(str(ASSET_ROOT / "AppIcon.png")))
+    from app_install import ensure_installed
+
+    if not ensure_installed():
+        sys.exit(0)
     main = Controls()
     main.show()
     if "--preview" in sys.argv:

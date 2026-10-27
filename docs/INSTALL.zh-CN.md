@@ -2,7 +2,7 @@
 
 > 🔴 **首次打开容易被 macOS 拦截。请根据下面的步骤逐步完成设置。系统拦截弹窗无法由本应用添加按钮或自动确认；请手动打开“系统设置 → 隐私与安全性”，下滑到“安全性”后点击“仍要打开”。**
 
-先[下载 Mac 版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，解压后把 **Lecture Caption.app** 拖进“应用程序”，再双击打开。
+先[下载 Mac 版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，解压后双击 **Lecture Caption.app**。完成下方系统安全确认后，点击“安装到应用程序并打开”，无需手动拖动；手动拖入仍可作为备用方法。
 
 ## 首次打开被 macOS 拦截？按图操作
 
@@ -48,3 +48,7 @@
 密码仅在 **macOS 系统弹窗** 中输入，由系统验证；本软件不会接收这个 Mac 密码。授权后软件会取得该 API key 来调用接口。不要把 Mac 密码填到软件的 API key 栏、Groq 网页或发给任何人。这个操作是在授权读取上述条目，不是要求你关闭钥匙串保护。
 
 按钮含义可参阅 [Apple 官方说明：允许 App 访问钥匙串](https://support.apple.com/guide/mac-help/kychn002/mac)。
+
+
+### 2.4.3 一键安装
+下载 ZIP 后解压、打开应用。完成 macOS 首次安全确认后，点“安装到应用程序并打开”，软件自动复制并验证，退出下载副本后打开已安装版本。权限不足时由 macOS 请求管理员授权；原下载文件不删除。若已有安装，点击“打开已安装版本”后在关于窗口检查更新。也可“稍后（继续使用）”。下载中的文件不能自行运行或移动，系统安全拦截不能自动绕过。
