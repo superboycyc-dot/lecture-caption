@@ -21,3 +21,13 @@ Official corresponding source repositories: [PySide/Shiboken](https://code.qt.io
 ## Signing
 
 Versions through 2.4.4 remain ad-hoc signed. Starting with 2.4.5, official assets require Developer ID Application signing and accepted Apple notarization, stapling and Gatekeeper validation. See DEVELOPER_ID.md. The tagged workflow validates source/build but intentionally does not publish its ad-hoc CI artifact; the verified notarized maintainer build is published against the same tag. Never commit certificates, provisioning secrets or Apple credentials.
+
+## 3.x DMG release order
+
+1. Build and sign the app from the exact release source commit; run isolated UI and unit checks.
+2. Notarize/staple the app with `python scripts/notarize_app.py --profile lecture-caption-notary`.
+3. Build and sign the installer: `python scripts/build_dmg.py` with the same Developer ID identity. Its Finder window contains the app, an Applications shortcut and bilingual drag instructions.
+4. Notarize/staple the DMG: `python scripts/notarize_app.py --profile lecture-caption-notary --artifact release/LectureCaption-X.Y.Z-macOS-arm64.dmg`. App and image submissions use separate status directories.
+5. Run `python scripts/package_release.py` after both tickets are stapled. This preserves the existing DMG, packages the updater ZIP and source ZIP, then hashes all assets. Never rebuild a DMG after notarizing it; remove an unpublished stale image explicitly before a new build.
+6. Validate a read-only mounted DMG, its Applications symlink and Finder layout. Check both Gatekeeper policies, test a quarantined synthetic copy, and download/verify the public assets. A DMG does not itself fix every damaged-app warning.
+7. Publish the DMG as the primary download and retain the app ZIP so existing 2.x/3.x updaters continue to work. CI builds are unsigned/ad-hoc validation artifacts and must not replace the notarized maintainer assets.

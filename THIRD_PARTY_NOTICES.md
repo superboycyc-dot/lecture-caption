@@ -18,3 +18,7 @@ The PyInstaller bootloader uses its GPL license with a distribution exception; i
 
 
 Offline formula rendering uses Matplotlib and its pinned runtime dependencies (including Pillow, contourpy, cycler, fontTools, kiwisolver, packaging, pyparsing, python-dateutil, and six). Their distribution license and copyright notices are retained in `licenses/` and bundled with the app. Formula rendering uses the internal mathtext parser, without a separate TeX installation or online service.
+
+## DMG build tools
+
+The release process uses dmgbuild (MIT), ds-store (MIT) and mac-alias (MIT), pinned in requirements-dev.txt. These tools create the installer image and Finder layout; their Python modules are not part of the application runtime. Source and license notices: https://github.com/dmgbuild/dmgbuild, https://github.com/dmgbuild/ds_store, https://github.com/dmgbuild/mac_alias.

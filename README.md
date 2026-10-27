@@ -1,127 +1,46 @@
-<p align="center"><img src="assets/AppIcon.png" width="128" alt="Lecture Caption icon"></p>
-
-Version 2.4.6 appends new notes every 30 seconds and consolidates the entire accumulated document every five minutes. Ending a lecture saves the transcript Markdown beside the automatic PDF; “另存转录” also exports it. Provider failures remain visible until a successful notes request.
+<p align="center"><img src="assets/AppIcon.png" width="112" alt="Lecture Caption 图标"></p>
 <h1 align="center">Lecture Caption</h1>
-<p align="center">Follow the lecture. Keep the logic.<br>macOS 双语课堂字幕与实时 Markdown 笔记</p>
+<p align="center">听懂每一句，记住每个关键点。<br>Mac 英中双语字幕 · 实时课堂笔记 · 本地原文归档</p>
 
-English · [简体中文](README.zh-CN.md) · [User guide](docs/USER_GUIDE.md) · [Privacy](docs/PRIVACY.md)
+<p align="center"><a href="https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.0.0/LectureCaption-3.0.0-macOS-arm64.dmg"><img src="https://img.shields.io/badge/下载正式版_3.0.0-DMG_·_Apple_Silicon-2877E1?style=for-the-badge&logo=apple&logoColor=white" alt="下载 DMG 安装包"></a></p>
 
-A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
+[English](README.en.md) · [详细中文说明](README.zh-CN.md) · [使用指南](docs/USER_GUIDE.zh-CN.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
 
-> Stable release **2.4.6** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. Official release assets are Developer ID signed and Apple notarized (outside the Mac App Store).
+Lecture Caption 是面向英语课堂、在线课程和会议学习的免费开源 macOS 应用。收听麦克风或电脑播放的音频，在同一窗口查看英文原文、中文翻译和持续整理的 Markdown 笔记，课后导出 PDF 与转录原文。尤其适合 CS、数学等需要保留英文术语和推导过程的课程。
 
-![Blue-and-white control panel](docs/workspace-blue.png)
+![软件界面：左侧课堂笔记，右侧英文原文与中文翻译](docs/workspace-blue.png)
 
-[![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+## 可以做什么
 
-Version 2.4.6 adds **numeric usage sharing**, enabled only after the explicit first-run agreement (withdrawable in Settings) through a verified public HTTPS receiver. No Tailscale setup is needed. See [privacy details](docs/PRIVACY.md) and [independent public acceptance](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895).
+| 功能 | 使用体验 |
+| --- | --- |
+| 麦克风与电脑音频 | 教室收音，或转录电脑播放的线上课程、会议和视频；一次选择一种音源。 |
+| 英中双语字幕 | 英文原文与中文翻译对照，支持纯英文/纯中文；历史可回看，当前段落高亮。 |
+| 持续课堂笔记 | 约每 30 秒追加新增笔记，每 5 分钟整合此前全部内容，保留已有知识点。 |
+| 原文与笔记导出 | 自动保存 PDF 和转录 Markdown；“另存转录”单独导出已识别原文，笔记支持 Markdown/PDF。 |
+| 笔记编辑与公式 | 编辑 Markdown、添加高亮和批注，支持公式预览与 PDF 导出。 |
+| Apple 本地或 Groq | 可选 Apple 本地英文识别/英中翻译，或使用配置的云端接口；结构化笔记需要文本 API。 |
+| 清楚的故障反馈 | 显示超时、限流、密钥/权限等原因，临时错误退避重试，未整理原文保留。 |
+| Mac 使用习惯 | DMG 拖拽安装、钥匙串保存密钥、应用内更新；开始前不收音，不保存原始录音。 |
 
-## Features
+## 三步安装
 
-- **Classroom and online audio:** microphone input, or native ScreenCaptureKit system audio without a virtual audio driver. One source at a time.
-- **One workspace:** notes left, caption history right; current segment highlighting, animated scroll, manual history browsing and return-to-latest. Settings open only when requested.
-- **Main-window controls:** Start/Stop, input source, live audio meter, clearly labeled local speech-API accounting. Opacity lives in Settings.
-- **Apple local captions:** optional on-device English recognition and English-to-Chinese translation (macOS 15+, installed language resources). With automatic notes off, no API key is needed. No silent cloud fallback.
-- **Live study notes:** continuously revised Chinese Markdown, normally appended every 30 seconds with whole-document consolidation every five minutes, emphasizing definitions, assumptions, arguments, algorithms and complexity.
-- **CS/math terminology:** supply course terms; uncertain formula details are explicitly requested to be marked for checking.
-- **macOS Keychain:** save your API key once; reload it at startup. No key in ordinary config or command arguments.
-- **Durable text:** local Markdown and transcript events; unfinished notes retain their source text. No raw audio is saved.
-- **Bounded queues:** stale audio is dropped rather than allowing lag to grow indefinitely; gaps are marked.
-- **Bring your server:** configurable OpenAI-compatible endpoints for a future home inference server.
+1. [下载 3.0.0 DMG](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.0.0/LectureCaption-3.0.0-macOS-arm64.dmg)，双击打开。
+2. 在安装窗口把 **Lecture Caption** 拖到右侧 **Applications（应用程序）** 文件夹。升级时先退出旧应用，再按 Finder 提示替换。
+3. 推出安装磁盘，从“应用程序”打开 Lecture Caption，按首次指南设置权限与所需模型，再点击开始。
 
-## Install
+适用于 **Apple Silicon（M1/M2/M3/M4/M5 等）和 macOS 14+**；Apple 本地翻译要求 macOS 15+。DMG 与内部应用均使用 Developer ID 签名并通过 Apple 公证，仍可能出现正常的下载来源确认和权限弹窗。无需安装 Python 或输入终端命令。
 
+## 模型、费用与数据
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v2.4.6-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v2.4.6/LectureCaption-2.4.6-macOS-arm64.zip)
+应用本身免费开源。Groq 等第三方接口有自己的账号额度、服务规则和计费；不会自动切换到其他付费服务。Apple 本地字幕可在关闭自动笔记后不使用 API key；开启笔记会把识别原文发送至配置的文本 API。
 
-Click the blue button to download directly. No GitHub account required.
+原文和笔记保存在本机；云端模式会发送所需音频/文字到所选接口。密钥保存在 macOS 钥匙串。数字用量分享需首次明确同意，可在设置中关闭；详见[隐私说明](docs/PRIVACY.md)。转录和笔记可能出错，未念出的板书内容不能从音频还原。
 
-1. Click the blue **Download for Mac** button above.
-2. Extract and open **Lecture Caption.app**. After the macOS security confirmation, click **Install to Applications and Open** (shown in Chinese).
-3. Open the official Developer ID-signed, Apple-notarized app. A normal downloaded-app confirmation or microphone permission prompt may still appear. [Installation help](docs/INSTALL.zh-CN.md).
-4. Read and accept [软件使用规则](docs/SOFTWARE_RULES.zh-CN.md) in the first-run guide; the unchecked agreement explicitly includes numeric usage sharing. Then connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
-5. Select your microphone or system audio, then start capture. Grant the relevant macOS permission when prompted.
+## 获取帮助与参与开发
 
-**Free application, quota-limited API.** Groq has a free tier; availability, model IDs and account quotas can change. This app cannot verify your billing plan and does not guarantee zero charges on a paid account. Check [your limits](https://console.groq.com/settings/limits) and [Groq documentation](https://console.groq.com/docs/rate-limits). No automatic fallback to a different paid provider is implemented.
+- [详细功能与设置](README.zh-CN.md) · [英文开发与构建说明](README.en.md)
+- [安装帮助](docs/INSTALL.zh-CN.md) · [提交问题](https://github.com/superboycyc-dot/lecture-caption/issues)（请勿上传密钥或私人课堂录音）
+- [正式版本与校验和](https://github.com/superboycyc-dot/lecture-caption/releases/latest) · [MIT 许可证](LICENSE)
 
-## Apple local setup
-
-Open Settings, choose Apple Speech and Apple Translate, and click **准备 Apple 英中翻译语言包**. Finish the native download dialog. Local speech requires English dictation resources and Speech Recognition permission; enable/download English dictation in macOS Keyboard settings if needed. Unsupported/missing resources produce an explicit error. Turn off automatic notes to use captions without Groq. Local recognition is experimental and uses general English dictation; the course glossary currently applies to cloud recognition only. Local services still use system ML models and consume power.
-
-## What to expect
-
-Captions are **chunked near-real-time**, not word-by-word simultaneous interpretation. Cloud previews normally update every 8 seconds and Apple previews every 3 seconds, plus processing latency. Both revise the current utterance until a pause, with a 24-second bound for continuous speech. Translation calls and speech calls are processed in order. Notes are updated separately.
-
-The app hears audio only: it cannot infer unwritten/unspoken board content. ASR and notes can be wrong, especially for notation, subscripts, proofs and code. The built-in Markdown view preserves LaTeX source but does not typeset math; open the `.md` in a math-aware editor if needed.
-
-**Pause behavior:** capture stops immediately; incomplete chunks and queued audio are discarded and marked. Wait for the final sentence to appear before pausing if you need to preserve it. Notes for already transcribed text may finish in the background.
-
-## Data and privacy
-
-Local files live in:
-
-```text
-~/Library/Application Support/Lecture Caption/
-├── config.json                   # optional; never put keys here
-├── logs/
-└── sessions/<date-time>/
-    ├── notes.md
-    ├── transcript.md              # cumulative, revised source document
-    └── transcript.jsonl           # original and translation update events
-```
-
-In cloud mode, audio chunks go to the selected speech API and transcripts go to the selected translation/notes API. Apple speech/translation stay on-device; enabling structured notes still sends recognized text to your notes API. Keychain stores credentials on this Mac, without enabling iCloud synchronization. There is no app-owned backend, analytics or automatic audio upload before you start capture. See [Privacy](docs/PRIVACY.md).
-
-## Develop and build
-
-Requires an Apple Silicon Mac, Python 3.13, Xcode Command Line Tools, and network access for Python dependencies. The SDK must include Translation.framework (Xcode 16+).
-
-```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-python scripts/build_native.py
-python caption.py
-```
-
-Build the independent app and verify its signature:
-
-```bash
-python scripts/build_app.py
-```
-
-The result is `dist/Lecture Caption.app`, containing Python, Qt and runtime dependencies. No model weights or API keys are bundled. Apple language resources are managed by macOS. Runtime dependencies are pinned in `requirements-lock.txt`. The native helpers target macOS 14.0 / arm64. Source builds are reproducible as a documented process; binary byte-for-byte identity is not claimed.
-
-Checks:
-
-```bash
-ruff check .
-ruff format --check caption.py core.py credentials.py scripts tests
-python -m unittest discover -s tests -v
-python scripts/check_release.py
-```
-
-CI builds and tests on a standard Apple Silicon macOS runner. Tag releases use the same build script and publish ZIPs and SHA-256 sums. See [Release process](docs/RELEASING.md), [Contributing](CONTRIBUTING.md) and [Roadmap](docs/ROADMAP.md).
-
-## License and credits
-
-Application code and the project icon are provided under **MIT**. The icon was generated with AI and selected for this project; no exclusivity claim is made.
-
-The VAD, chunking, WAV serialization and quota modules derive from [AwesomeMi/realtime-transcribe](https://github.com/AwesomeMi/realtime-transcribe), MIT, copyright 2026 AwesomeMi. Its license and exact commit are retained in `vendor/`.
-
-Qt/PySide, Python and other bundled libraries retain their own licenses. Qt is dynamically bundled; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), `licenses/` and the rebuild instructions. This project is independent of Apple, Groq and upstream projects.
-
-When Groq returns rate-limit headers, the main window also displays the latest server request/token snapshot with its model and timestamp. This is not a billing balance or a live combined quota for all models. See [Groq rate-limit headers](https://console.groq.com/docs/rate-limits).
-
-The compact toolbar includes input, recognition/translation backends, English/Chinese/bilingual presentation, Start/Pause, Stop and a settings icon. Audio level and usage live at the bottom. Note hints disappear on first content; refresh/folder icons remain inside the pane. Right-click notes to switch Markdown source/read view. Caption language selection changes presentation only, retaining translations in the transcript.
-
-On macOS 26+, local recognition uses SpeechAnalyzer/SpeechTranscriber with explicit AssetInventory preparation. Use **准备 Apple 英文语音资源** in app Settings if assets are missing; toggling system Dictation is not sufficient for this engine. Older macOS uses the legacy on-device Speech API. Synthetic CS audio was verified through the native segment/recognition/Apple-translation pipeline without a cloud request; real classroom microphone accuracy still needs user verification.
-
-Coherent captions now use borderless timestamped paragraphs: black source and blue translation on a light surface, with current-paragraph emphasis. Both Apple and Groq periodically re-recognize cumulative utterance audio and retranslate the complete current text, revising the same paragraph until a natural pause (bounded at 24 seconds for continuous speech). Previous translations remain visible while an update is pending. Notes consume completed paragraphs once; pausing preserves the last recognized draft. Repeated cumulative audio consumes more Groq speech quota than independent slices. Time ranges are approximate capture spans, not word alignment.
-
-Live selectors remain enabled during capture. Translation-only switches keep capture and ASR running and retranslate the current paragraph; source/ASR switches save the latest recognized draft, reconnect input and discard stale-generation results. Unrecognized tail audio may be lost during input reconnection and is marked. The level indicator is green while capturing, grey when idle and a red exclamation on device errors. Daily API allowance sits beside locally counted 24h speech requests, without duration/processing-time clutter. Return-to-latest is a 32px viewport overlay: appears when browsing older text and disappears at the bottom without resizing content.
-
-Notes append new material approximately every 30 seconds and consolidate the entire accumulated document every five minutes. Incremental requests include at most 6000 characters of new whole transcript paragraphs and 2400 characters of recent notes, with an 1800-token output budget; a single unusually long paragraph can exceed the input batch target. Consolidation sends the full note document with a size-adjusted output budget (1800–6000 tokens). The complete transcript remains on disk. Enabling notes can send earlier unprocessed text in the current lecture to the configured notes API. Provider/account limits still apply to long lectures.
-
-
-Version 2.4.6 offers **Install to Applications and Open** on first launch from Downloads. macOS authorization is used if needed; the original download is retained. Existing installations are opened for normal updates instead of being overwritten. First-launch Gatekeeper confirmation remains a manual system step.
+[![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest)
