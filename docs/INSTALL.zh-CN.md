@@ -2,7 +2,7 @@
 
 > 🔴 **首次打开容易被 macOS 拦截。请根据下面的步骤逐步完成设置。系统拦截弹窗无法由本应用添加按钮或自动确认；请手动打开“系统设置 → 隐私与安全性”，下滑到“安全性”后点击“仍要打开”。**
 
-先[下载 Mac 版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，解压后把 **Lecture Caption.app** 拖进“应用程序”，再双击打开。
+先[下载 Mac 版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，解压后双击 **Lecture Caption.app**。完成下方系统安全确认后，点击“安装到应用程序并打开”，无需手动拖动；手动拖入仍可作为备用方法。
 
 ## 首次打开被 macOS 拦截？按图操作
 

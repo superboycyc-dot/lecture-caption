@@ -36,7 +36,7 @@ Version 2.4.3 adds **numeric usage sharing**, enabled only after the explicit fi
 Click the blue button to download directly. No GitHub account required.
 
 1. Click the blue **Download for Mac** button above.
-2. Extract it and drag **Lecture Caption.app** to **Applications**.
+2. Extract and open **Lecture Caption.app**. After the macOS security confirmation, click **Install to Applications and Open** (shown in Chinese).
 3. Open the app. If macOS blocks this unnotarized build, use the explicit Open Anyway flow in **System Settings → Privacy & Security**, after checking the release checksum and source. [See the illustrated four-step guide](docs/INSTALL.zh-CN.md) (Chinese screenshots).
 4. Read and accept [软件使用规则](docs/SOFTWARE_RULES.zh-CN.md) in the first-run guide; the unchecked agreement explicitly includes numeric usage sharing. Then connect to Groq, register/sign in, create and copy your own API key, then return and click Next. The app validates it and saves it to Keychain. Apple backup resources are prepared in the same flow.
 5. Select your microphone or system audio, then start capture. Grant the relevant macOS permission when prompted.
