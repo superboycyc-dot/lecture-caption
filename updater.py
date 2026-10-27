@@ -90,6 +90,32 @@ def verify_archive(path, expected):
                 raise ValueError("安装包解压大小异常")
 
 
+def signing_publisher(app):
+    metadata = subprocess.run(
+        ["codesign", "-dv", "--verbose=4", str(app)], check=True, capture_output=True, text=True
+    ).stderr
+    match = re.search(r"^TeamIdentifier=([A-Z0-9]{10})$", metadata, re.MULTILINE)
+    return (match.group(1) if match else None, "Authority=Developer ID Application:" in metadata)
+
+
+def verify_update_publisher(app):
+    if not getattr(sys, "frozen", False):
+        return
+    from app_install import running_bundle
+
+    current = running_bundle()
+    if current is None:
+        raise ValueError("无法确认当前应用身份")
+    team, developer_id = signing_publisher(current)
+    if not developer_id:
+        return  # One-time migration from older ad-hoc releases uses GitHub + checksums.
+    incoming_team, incoming_developer_id = signing_publisher(app)
+    if not team or incoming_team != team or not incoming_developer_id:
+        raise ValueError("新版开发者签名与当前应用不匹配")
+    subprocess.run(["xcrun", "stapler", "validate", str(app)], check=True, capture_output=True)
+    subprocess.run(["spctl", "--assess", "--type", "execute", str(app)], check=True, capture_output=True)
+
+
 def stage_release(release, cache):
     version = release["tag_name"].removeprefix("v")
     if version_tuple(version) <= version_tuple(current_version()):
@@ -116,6 +142,7 @@ def stage_release(release, cache):
         ):
             raise ValueError("安装包身份或版本不匹配")
         subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True, capture_output=True)
+        verify_update_publisher(app)
         return app
     except Exception:
         import shutil
