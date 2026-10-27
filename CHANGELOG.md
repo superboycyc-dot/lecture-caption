@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.2 — 2026-10-26
+- Show disabled automatic notes and note-provider failures clearly; prevent editor focus from indefinitely blocking automatic notes. Actual edits resume after saving and an idle interval.
+- Automatically save PDF to Desktop or a configured directory after finishing, retain internal Markdown, and offer Save As MD/PDF or Done.
+- Add offline math rendering, formula editing and lossless Markdown/PDF export for supported TeX math syntax.
+- Add prominent first-launch warning before downloads and explicit Groq key-name/expiration/copy instructions in both setup windows.
+- Keep Apple speech and translation preparation independent; expose download controls and a post-Groq backup reminder/retry.
+
 ## 2.4.1 — 2026-10-26
 
 - Move a compact “同意《软件使用规则》” checkbox/link above first-run connection buttons; require acceptance before setup/capture, and show it only on the first page.

@@ -139,7 +139,14 @@ class SetupWizard(QDialog):
         self.cloud = QWidget()
         cloud = QVBoxLayout(self.cloud)
         cloud.setContentsMargins(0, 0, 0, 0)
-        steps = QLabel("登录 / 注册 Groq → Create API Key → 复制 key。\n回到这里点下一步，软件自动粘贴、验证并保存。")
+        steps = QLabel(
+            "请按照以下步骤完成 Groq 配置：\n"
+            "① 登录 / 注册 → 点击 Create API Key\n"
+            "② Display Name 填：Lecture Caption\n"
+            "③ Expiration 保持 No expiration，再点 Submit / Create API Key\n"
+            "④ 一定要复制完整 key，再回到这里点下一步。"
+        )
+        steps.setStyleSheet("font-size:18px;font-weight:600;color:#233956;")
         steps.setWordWrap(True)
         cloud.addWidget(steps)
         self.account = QPushButton("打开 Groq 注册 / API 页面")
@@ -149,7 +156,7 @@ class SetupWizard(QDialog):
         self.key.setEchoMode(QLineEdit.Password)
         self.key.setPlaceholderText("粘贴 API key，或复制后直接点下一步")
         cloud.addWidget(self.key)
-        self.connect = QPushButton("下一步")
+        self.connect = QPushButton("下一步：验证并保存 key")
         self.connect.setObjectName("primary")
         self.connect.clicked.connect(self.submit_key)
         cloud.addWidget(self.connect)
@@ -165,6 +172,18 @@ class SetupWizard(QDialog):
         self.ready_label = QLabel("配置已完成。接下来直接在主窗口看看每个按钮的用途。")
         self.ready_label.setWordWrap(True)
         ready.addWidget(self.ready_label)
+        self.backup_label = QLabel(
+            "Apple 本地备用需要分别准备英文识别资源和英中翻译语言包；下载提示出现时，请点下载并等待完成。"
+        )
+        self.backup_label.setWordWrap(True)
+        self.backup_label.setStyleSheet("font-size:16px;color:#233956;")
+        ready.addWidget(self.backup_label)
+        self.backup_button = QPushButton("检查 / 下载 Apple 识别与翻译资源")
+        self.backup_button.clicked.connect(self.prepare_apple_backup)
+        ready.addWidget(self.backup_button)
+        self.dictation_button = QPushButton("打开系统听写设置（旧系统英文识别资源）")
+        self.dictation_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(local_services.DICTATION_SETTINGS)))
+        ready.addWidget(self.dictation_button)
         ready.addStretch()
         self.finish_button = QPushButton("下一步")
         self.finish_button.setObjectName("primary")
@@ -213,7 +232,16 @@ class SetupWizard(QDialog):
 
     def set_busy(self, busy):
         self.busy = self.controls.setup_busy = busy
-        for widget in (self.local_button, self.cloud_button, self.connect, self.key, self.back):
+        for widget in (
+            self.local_button,
+            self.cloud_button,
+            self.connect,
+            self.key,
+            self.back,
+            self.finish_button,
+            self.backup_button,
+            self.dictation_button,
+        ):
             widget.setEnabled(not busy)
         self.terms_checkbox.setEnabled(not busy)
         self.update_entry_buttons()
@@ -298,6 +326,22 @@ class SetupWizard(QDialog):
 
         threading.Thread(target=run, daemon=True).start()
 
+    def prepare_apple_backup(self):
+        if self.busy or not self.require_rules():
+            return
+        self.set_busy(True)
+        self.backup_button.setEnabled(False)
+        self.backup_label.setText("正在分别检查英文识别、英中翻译。请完成弹出的语言包下载；首次可能需要几分钟。")
+
+        def run():
+            try:
+                message = local_services.prepare_local_resources(speech=True, translation=True)
+                self.step_done.emit("backup", True, message or "英文识别及英中翻译均已准备完成。")
+            except RuntimeError as error:
+                self.step_done.emit("backup", False, str(error))
+
+        threading.Thread(target=run, daemon=True).start()
+
     def prepare_permissions(self):
         if not self.require_rules():
             self.set_busy(False)
@@ -338,12 +382,24 @@ class SetupWizard(QDialog):
         self.message.setText(message)
         self.controls.status.setText(message)
         self.set_busy(False)
+        if stage == "backup":
+            self.apple_prepared = ok
+            self.backup_button.setEnabled(True)
+            self.backup_label.setText(
+                message
+                if ok
+                else "尚未全部就绪：" + message + " 请重试下载；旧系统也可打开听写设置，添加英语（美国）。"
+            )
+            return
         if stage == "key" and ok:
             self.verified_key = self.key.text().strip()
             self.controls.key_status.setText(message)
             self.ready_label.setText("Groq 已连接，识别、翻译和自动笔记均已启用。下一步开始窗口教学。")
-            if not self.apple_prepared:
-                self.ready_label.setText(self.ready_label.text() + " Apple 备用资源尚未就绪，可稍后在设置中重试。")
+            self.backup_label.setText(
+                "Apple 英文识别与英中翻译均已准备完成，可用作本地备用。"
+                if self.apple_prepared
+                else "接下来请配置 Apple 本地备用：点击下方检查 / 下载，分别完成英文识别与英中翻译语言包。Groq 已连接也建议完成此步骤。"
+            )
             self.controls.save_preferences()
             self.pages.setCurrentWidget(self.ready)
             return

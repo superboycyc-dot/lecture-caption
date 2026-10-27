@@ -44,6 +44,7 @@ def main():
         "tutorial.py",
         "usage_sync.py",
         "software_rules.py",
+        "math_render.py",
         "docs/SOFTWARE_RULES.zh-CN.md",
         "assets/icons/highlight.svg",
         "native/GroqSetup.swift",
