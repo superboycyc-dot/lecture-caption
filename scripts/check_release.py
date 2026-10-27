@@ -45,6 +45,7 @@ def main():
         "usage_sync.py",
         "software_rules.py",
         "math_render.py",
+        "app_install.py",
         "docs/SOFTWARE_RULES.zh-CN.md",
         "assets/icons/highlight.svg",
         "native/GroqSetup.swift",

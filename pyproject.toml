@@ -1,6 +1,6 @@
 [project]
 name = "lecture-caption"
-version = "2.4.2"
+version = "2.4.3"
 description = "macOS bilingual lecture captions and live Markdown notes with Apple local or cloud processing"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.3 — 2026-10-26
+- Offer one-click installation into Applications on first launch from Downloads, before setup, capture or update workers start. Validate the copy and reopen it; preserve original files and never overwrite an existing installation.
+- Existing installations can be opened directly for normal updates. Cancellation/failure allows continued use, with a manual-install fallback.
+
 ## 2.4.2 — 2026-10-26
 - Show disabled automatic notes and note-provider failures clearly; prevent editor focus from indefinitely blocking automatic notes. Actual edits resume after saving and an idle interval.
 - Automatically save PDF to Desktop or a configured directory after finishing, retain internal Markdown, and offer Save As MD/PDF or Done.
