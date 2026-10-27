@@ -46,4 +46,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/*.zip release/SHA256SUMS.txt --verify-tag --title "Lecture Caption $GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"
+          gh release create "$GITHUB_REF_NAME" release/*.dmg release/*.zip release/SHA256SUMS.txt --verify-tag --title "Lecture Caption $GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"

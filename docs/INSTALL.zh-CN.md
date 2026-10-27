@@ -1,5 +1,16 @@
 # Mac 安装与首次打开图解
 
+## 3.0.0 DMG 安装
+
+1. 下载官方 `LectureCaption-3.0.0-macOS-arm64.dmg`，双击打开。
+2. 把左侧 Lecture Caption 拖到右侧 Applications（应用程序）。升级时先退出旧应用，再由 Finder 确认替换。
+3. 复制完成后推出安装磁盘，从“应用程序”打开软件。
+
+DMG 和内部应用都需通过签名、公证及 Gatekeeper 检查。正常首次来源确认、麦克风/系统音频和钥匙串权限由 macOS 处理；不要把“已损坏”当作正常安装步骤。若异常，先重新下载并核对 SHA-256，再提供 `codesign` 和 `spctl` 的验证结果，不需要关闭系统安全保护。
+
+ZIP 作为旧版本应用内更新的兼容资产保留；新用户优先使用 DMG。
+
+
 2.4.5 起为 Developer ID 签名与 Apple 公证版，仍通过 GitHub 独立分发，不等于 App Store 上架。
 
 

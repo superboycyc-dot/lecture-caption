@@ -1,5 +1,7 @@
 # User guide
 
+Version 3.0.0 uses a DMG installer: open it, drag Lecture Caption to Applications, eject the image, then launch from Applications. Quit older versions before replacing them. The ZIP remains available for existing in-app updaters.
+
 First-run setup requires accepting the versioned Software Use Rules. The blue rules link opens an in-app dialog; the agreement row sits immediately above the connection buttons and appears only on the first page. The single unchecked agreement explicitly includes numeric usage sharing; it must be checked to continue. Sharing can later be disabled in Settings. Closing setup cannot bypass the capture gate. Existing notes remain accessible for reading/export. Rules can be revisited from About.
 
 If macOS blocks the first launch, follow the [illustrated four-step opening guide](INSTALL.zh-CN.md) (Chinese screenshots). It shows System Settings, Privacy & Security, Open Anyway, and the final confirmation.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.0 — 2026-10-27
+- Launch the 3.0.0 stable distribution with a drag-to-Applications DMG, bilingual installation instructions and a consistent Finder window layout.
+- Sign, notarize and staple both the application and the DMG; retain the signed app ZIP for existing in-app updaters.
+- Rewrite the GitHub home page around the app’s features, installation, model choices and data handling; keep detailed Chinese and English guides.
+- Preserve 2.4.6 note generation, provider recovery, transcript export and user data.
+
+
 ## 2.4.6 — 2026-10-27
 - Append new notes every 30 seconds and consolidate the whole document every five minutes.
 - Keep safe, specific Groq note failure reasons visible until successful recovery, preserving pending source on failure.

@@ -1,9 +1,13 @@
-"""Create the release ZIP, source archive, and SHA-256 checksums."""
+"""Create DMG, updater ZIP, source archive and checksums; never rebuild a stapled DMG."""
 
 from pathlib import Path
 import hashlib
 import subprocess
 import tomllib
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_dmg import build as build_dmg
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,8 +25,11 @@ def main():
         cwd=ROOT,
         check=True,
     )
+    dmg = release / f"LectureCaption-{version}-macOS-arm64.dmg"
+    if not dmg.exists():
+        build_dmg(app, dmg)
     lines = []
-    for path in (target, source):
+    for path in (dmg, target, source):
         digest = hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
         lines.append(f"{digest}  {path.name}")
     (release / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n")
