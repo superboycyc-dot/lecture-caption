@@ -1,8 +1,8 @@
 # Mac 安装与首次打开图解
 
-## 3.0.0 DMG 安装
+## 3.1.0 DMG 安装
 
-1. 下载官方 `LectureCaption-3.0.0-macOS-arm64.dmg`，双击打开。
+1. 下载官方 `LectureCaption-3.1.0-macOS-arm64.dmg`，双击打开。
 2. 把左侧 Lecture Caption 拖到右侧 Applications（应用程序）。升级时先退出旧应用，再由 Finder 确认替换。
 3. 复制完成后推出安装磁盘，从“应用程序”打开软件。
 

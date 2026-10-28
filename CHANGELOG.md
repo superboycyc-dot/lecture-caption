@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 3.1.0 — 2026-10-27
 - Record consented usage-upload connection IPs on the receiver; update rules and require renewed agreement.
 - Add an in-app recent-notes chooser with titles, modification times and 15-character previews.
-- Show “打开最近笔记” in the empty notes pane; preserve historical originals when continuing or editing.
+- Show “打开历史” in the empty notes pane; preserve historical originals when continuing or editing.
 
 
 ## 3.0.0 — 2026-10-27

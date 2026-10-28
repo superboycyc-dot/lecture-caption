@@ -73,4 +73,4 @@ Provider failures show safe reasons and remain visible until a successful notes 
 
 ### Recent notes
 
-Choose **打开最近笔记** in the empty notes pane, or use **⋯ → 最近笔记**. The in-app chooser lists up to 50 local backups by modification time, with a title, date/time and the first 15 body characters. Click outside or press Esc to dismiss. Finish capture and processing before switching notes. Viewing is local; editing or continuing creates a separate session and preserves the original.
+Choose **打开历史** in the empty notes pane, or use **⋯ → 最近笔记**. The in-app chooser lists up to 50 local backups by modification time, with a title, date/time and the first 15 body characters. Click outside or press Esc to dismiss. Finish capture and processing before switching notes. Viewing is local; editing or continuing creates a separate session and preserves the original.

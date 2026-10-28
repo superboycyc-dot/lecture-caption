@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/AppIcon.png" width="128" alt="Lecture Caption icon"></p>
 
-Version 3.0.0 introduces a signed, notarized drag-to-Applications DMG installer. It appends new notes every 30 seconds and consolidates the entire accumulated document every five minutes. Ending a lecture saves the transcript Markdown beside the automatic PDF; “另存转录” also exports it. Provider failures remain visible until a successful notes request.
+Version 3.1.0 adds an in-app recent-notes chooser with titles, dates and previews. It includes a signed, notarized drag-to-Applications DMG installer. It appends new notes every 30 seconds and consolidates the entire accumulated document every five minutes. Ending a lecture saves the transcript Markdown beside the automatic PDF; “另存转录” also exports it. Provider failures remain visible until a successful notes request.
 <h1 align="center">Lecture Caption</h1>
 <p align="center">Follow the lecture. Keep the logic.<br>macOS 双语课堂字幕与实时 Markdown 笔记</p>
 
@@ -8,7 +8,7 @@ English · [首页](README.md) · [简体中文](README.zh-CN.md) · [User guide
 
 A lightweight macOS app for English CS and mathematics lectures: capture your microphone or computer audio, see English + Chinese caption history beside structured Markdown notes in one workspace. Choose cloud APIs or Apple’s on-device English speech and translation services. Structured notes use your configured text API.
 
-> Stable release **3.0.0** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. Official release assets are Developer ID signed and Apple notarized (outside the Mac App Store).
+> Stable release **3.1.0** · [Download for Apple Silicon Mac](https://github.com/superboycyc-dot/lecture-caption/releases/latest). macOS 14+. No Python or terminal setup required. Official release assets are Developer ID signed and Apple notarized (outside the Mac App Store).
 
 ![Blue-and-white control panel](docs/workspace-blue.png)
 
@@ -32,7 +32,7 @@ A lightweight macOS app for English CS and mathematics lectures: capture your mi
 ## Install
 
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v3.0.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.0.0/LectureCaption-3.0.0-macOS-arm64.dmg)
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Apple_Silicon_·_v3.1.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.1.0/LectureCaption-3.1.0-macOS-arm64.dmg)
 
 Click the blue button to download the DMG directly. No GitHub account required.
 
@@ -124,4 +124,4 @@ Live selectors remain enabled during capture. Translation-only switches keep cap
 Notes append new material approximately every 30 seconds and consolidate the entire accumulated document every five minutes. Incremental requests include at most 6000 characters of new whole transcript paragraphs and 2400 characters of recent notes, with an 1800-token output budget; a single unusually long paragraph can exceed the input batch target. Consolidation sends the full note document with a size-adjusted output budget (1800–6000 tokens). The complete transcript remains on disk. Enabling notes can send earlier unprocessed text in the current lecture to the configured notes API. Provider/account limits still apply to long lectures.
 
 
-Version 3.0.0 offers **Install to Applications and Open** on first launch from Downloads. macOS authorization is used if needed; the original download is retained. Existing installations are opened for normal updates instead of being overwritten. First-launch Gatekeeper confirmation remains a manual system step.
+Version 3.1.0 offers **Install to Applications and Open** on first launch from Downloads. macOS authorization is used if needed; the original download is retained. Existing installations are opened for normal updates instead of being overwritten. First-launch Gatekeeper confirmation remains a manual system step.

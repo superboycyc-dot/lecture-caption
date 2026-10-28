@@ -465,13 +465,41 @@ class NotesPane(QWidget):
         from recent_notes import RecentNotesPopup
 
         self.recent_popup = RecentNotesPopup(self)
+        self.recent_popup.list.setProperty("historyIcon", QIcon(str(assets / "icons/history.svg")))
         self.recent_popup.note_selected.connect(self.recent_requested.emit)
-        self.recent_button = QPushButton("打开最近笔记", self.stack)
-        self.recent_button.setFixedSize(230, 76)
+        self.recent_button = QPushButton(self.stack)
+        self.recent_button.setAccessibleName("打开历史")
+        self.recent_button.setCursor(Qt.PointingHandCursor)
+        self.recent_button.setFixedSize(300, 96)
         self.recent_button.setStyleSheet(
-            "QPushButton {background:white;color:#53657A;border:2px solid #0AA9F5;border-radius:8px;font-size:18px;}"
-            "QPushButton:hover {background:#EDF7FF;}"
+            "QPushButton {background:#FAFCFF;border:1px solid #E1EAF5;border-radius:16px;}"
+            "QPushButton:hover {background:#F1F7FF;border-color:#BDD4F0;}"
+            "QPushButton:pressed {background:#E8F2FF;border-color:#A9C8ED;}"
+            "QPushButton:focus {border-color:#70A5E5;}"
         )
+        entry = QHBoxLayout(self.recent_button)
+        entry.setContentsMargins(20, 16, 20, 16)
+        entry.setSpacing(14)
+        icon = QLabel()
+        icon.setFixedSize(44, 44)
+        icon.setAlignment(Qt.AlignCenter)
+        icon.setPixmap(QIcon(str(assets / "icons/history.svg")).pixmap(26, 26))
+        icon.setStyleSheet("background:#EAF3FF;border-radius:12px;border:0;")
+        entry.addWidget(icon)
+        text = QVBoxLayout()
+        text.setSpacing(5)
+        title = QLabel("打开历史")
+        title.setStyleSheet("color:#29496D;font-size:16px;font-weight:600;background:transparent;border:0;")
+        subtitle = QLabel("继续整理之前的课堂笔记")
+        subtitle.setStyleSheet("color:#8A9AAF;font-size:12px;background:transparent;border:0;")
+        text.addWidget(title)
+        text.addWidget(subtitle)
+        entry.addLayout(text, 1)
+        arrow = QLabel("›")
+        arrow.setStyleSheet("color:#8DA9C9;font-size:24px;font-weight:300;background:transparent;border:0;")
+        entry.addWidget(arrow)
+        for label in (icon, title, subtitle, arrow):
+            label.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.recent_button.clicked.connect(self.show_recent_notes)
         self.stack.installEventFilter(self)
         self.refresh_recent_button()
@@ -499,9 +527,12 @@ class NotesPane(QWidget):
         from recent_notes import recent_notes
         from PySide6.QtCore import QPoint
 
-        self.recent_popup.populate(recent_notes(self.data_root))
+        entries = recent_notes(self.data_root)
+        self.recent_popup.populate(entries)
         screen = self.screen().availableGeometry()
-        self.recent_popup.resize(min(480, screen.width()), min(430, screen.height()))
+        self.recent_popup.resize(
+            min(480, screen.width()), min(140 + max(1, min(4, len(entries))) * 84, screen.height())
+        )
         center = self.mapToGlobal(self.rect().center())
         x = max(
             screen.left(),
