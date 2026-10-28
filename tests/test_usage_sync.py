@@ -191,7 +191,7 @@ class UsageTests(TestCase):
             self.assertEqual(url, "https://example.test/v1/usage/batch")
             self.assertFalse(kwargs["allow_redirects"])
             self.assertEqual(set(kwargs["json"]), {"schema_version", "events"})
-            self.assertNotIn("headers", kwargs)
+            self.assertEqual(kwargs["headers"], {"X-Lecture-Usage-IP": "1"})
             return acknowledge(url, **kwargs)
 
         self.assertTrue(self.reporter.sync_once(send))

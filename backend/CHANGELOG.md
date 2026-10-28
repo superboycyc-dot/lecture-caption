@@ -1,3 +1,7 @@
+# Unreleased
+
+- Add opt-in connection IP receipts linked to upload event IDs, trusted proxy validation, 30-day expiry and IP-free backups. Existing numeric event schema and acknowledgements are unchanged.
+
 # Backend changelog
 
 ## 1.0.0 — 2026-10-27

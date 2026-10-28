@@ -53,6 +53,11 @@ def backup():
     try:
         with connect() as src, sqlite3.connect(tmp) as dst:
             src.backup(dst)
+            # Connection IPs are deliberately excluded from retained backups.
+            if dst.execute("SELECT 1 FROM sqlite_master WHERE name='upload_sources'").fetchone():
+                dst.execute("DELETE FROM upload_sources")
+                dst.commit()
+                dst.execute("VACUUM")
             if dst.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise RuntimeError()
         # Restore to a separate database and compare every committed snapshot.

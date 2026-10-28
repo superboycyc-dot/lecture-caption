@@ -333,6 +333,7 @@ class SourceEdit(QPlainTextEdit):
 
 
 class NotesPane(QWidget):
+    recent_requested = Signal(str)
     import_requested = Signal()
     summary_requested = Signal()
     save_failed = Signal(str)
@@ -434,6 +435,7 @@ class NotesPane(QWidget):
         self.source_action = menu_action("查看源代码", checkable=True)
         self.source_action.toggled.connect(self.toggle_source)
         self.summary_action = menu_action("立即整理", self.summary_requested.emit)
+        menu_action("最近笔记", lambda: QTimer.singleShot(0, self.show_recent_notes))
         menu_action("打开文件夹", self.open_folder)
         self.more.setMenu(self.menu)
         row.addWidget(self.more)
@@ -460,6 +462,19 @@ class NotesPane(QWidget):
         self.title.installEventFilter(self)
         self.title.textEdited.connect(self.changed)
         body.addWidget(self.stack, 1)
+        from recent_notes import RecentNotesPopup
+
+        self.recent_popup = RecentNotesPopup(self)
+        self.recent_popup.note_selected.connect(self.recent_requested.emit)
+        self.recent_button = QPushButton("打开最近笔记", self.stack)
+        self.recent_button.setFixedSize(230, 76)
+        self.recent_button.setStyleSheet(
+            "QPushButton {background:white;color:#53657A;border:2px solid #0AA9F5;border-radius:8px;font-size:18px;}"
+            "QPushButton:hover {background:#EDF7FF;}"
+        )
+        self.recent_button.clicked.connect(self.show_recent_notes)
+        self.stack.installEventFilter(self)
+        self.refresh_recent_button()
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.setInterval(700)
@@ -472,7 +487,37 @@ class NotesPane(QWidget):
         self.edit_idle_timer.setInterval(2500)
         self.edit_idle_timer.timeout.connect(self.resume_after_edit)
 
+    def refresh_recent_button(self):
+        self.recent_button.move(
+            max(0, (self.stack.width() - self.recent_button.width()) // 2),
+            max(0, (self.stack.height() - self.recent_button.height()) // 2),
+        )
+        self.recent_button.setVisible(not self.has_content and not self.engine.active)
+        self.recent_button.raise_()
+
+    def show_recent_notes(self):
+        from recent_notes import recent_notes
+        from PySide6.QtCore import QPoint
+
+        self.recent_popup.populate(recent_notes(self.data_root))
+        screen = self.screen().availableGeometry()
+        self.recent_popup.resize(min(480, screen.width()), min(430, screen.height()))
+        center = self.mapToGlobal(self.rect().center())
+        x = max(
+            screen.left(),
+            min(center.x() - self.recent_popup.width() // 2, screen.right() - self.recent_popup.width() + 1),
+        )
+        y = max(
+            screen.top(),
+            min(center.y() - self.recent_popup.height() // 2, screen.bottom() - self.recent_popup.height() + 1),
+        )
+        self.recent_popup.move(QPoint(x, y))
+        self.recent_popup.show()
+        self.recent_popup.list.setFocus()
+
     def eventFilter(self, watched, event):
+        if watched is self.stack and event.type() == QEvent.Resize:
+            self.refresh_recent_button()
         if event.type() == QEvent.FocusOut:
             self.focus_timer.start(0)
         return super().eventFilter(watched, event)
@@ -514,6 +559,7 @@ class NotesPane(QWidget):
             self.engine.document_revision += 1
             self.engine.notes_editing = True
         self.has_content = True
+        self.refresh_recent_button()
         self.content_changed.emit()
         self.timer.start()
         self.edit_idle_timer.start()
@@ -557,6 +603,8 @@ class NotesPane(QWidget):
         self.source.setPlainText(document)
         self.loading = False
         self.dirty = False
+        self.has_content = bool(document.strip())
+        self.refresh_recent_button()
 
     def toggle_source(self, show):
         if not self.flush_edits():

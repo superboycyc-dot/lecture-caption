@@ -1,6 +1,7 @@
-"""Anonymous cumulative snapshots. Never log request data."""
+"""Consented usage snapshots. Never log request data."""
 
 import asyncio
+from contextlib import closing
 import datetime as dt
 import ipaddress
 import json
@@ -110,6 +111,14 @@ class Store:
                 "CREATE TABLE IF NOT EXISTS events(event_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, day_utc TEXT NOT NULL, recording_count INTEGER NOT NULL, duration_ms INTEGER NOT NULL, source_words INTEGER NOT NULL, source_chars INTEGER NOT NULL, translated_words INTEGER NOT NULL, translated_chars INTEGER NOT NULL) WITHOUT ROWID"
             )
 
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS upload_sources (id INTEGER PRIMARY KEY, received_at INTEGER NOT NULL, source_ip TEXT NOT NULL, event_ids TEXT NOT NULL)"
+            )
+
+    def expire_sources(self):
+        with closing(self.connect()) as c:
+            c.execute("DELETE FROM upload_sources WHERE received_at < ?", (int(time.time()) - 30 * 86400,))
+
     def connect(self):
         c = sqlite3.connect(self.path, timeout=2, isolation_level=None)
         c.execute("PRAGMA synchronous=FULL")
@@ -118,7 +127,7 @@ class Store:
         c.execute("PRAGMA max_page_count=262144")
         return c
 
-    def commit(self, events):
+    def commit(self, events, source_ip=None):
         c = None
         try:
             size = sum(p.stat().st_size for p in self.directory.iterdir() if p.is_file())
@@ -136,6 +145,14 @@ class Store:
                 if row is None or e["revision"] > row[1]:
                     c.execute("INSERT OR REPLACE INTO events VALUES(?,?,?,?,?,?,?,?,?)", vals)
                 ack.append({"event_id": e["event_id"], "revision": max(e["revision"], row[1] if row else 0)})
+            if source_ip is not None:
+                source_ip = str(ipaddress.ip_address(source_ip))
+                now = int(time.time())
+                c.execute("DELETE FROM upload_sources WHERE received_at < ?", (now - 30 * 86400,))
+                c.execute(
+                    "INSERT INTO upload_sources(received_at,source_ip,event_ids) VALUES(?,?,?)",
+                    (now, source_ip, json.dumps([e["event_id"] for e in events])),
+                )
             c.execute("COMMIT")
             return {"schema_version": 1, "acknowledged": ack}
         except (sqlite3.Error, OSError):
@@ -195,6 +212,7 @@ class App:
                 while True:
                     await asyncio.sleep(5)
                     self.limiter.prune()
+                    self.store.expire_sources()
 
             while True:
                 msg = await receive()
@@ -267,7 +285,16 @@ class App:
                         raise Rejected(400) from None
                     events = validate(raw)
                     # One instance, one event-loop writer; no awaits within transaction.
-                    response = JSONResponse(self.store.commit(events))
+                    ip_consent = [v for k, v in headers if k == b"x-lecture-usage-ip"] == [b"1"]
+                    # Opt-in header is emitted only after accepting current rules.
+                    # Never accept an IP supplied in the JSON or an untrusted proxy header.
+                    source_ip = None
+                    if ip_consent:
+                        try:
+                            source_ip = str(ipaddress.ip_address(key))
+                        except ValueError:
+                            pass
+                    response = JSONResponse(self.store.commit(events, source_ip=source_ip))
                 finally:
                     self.active -= 1
         except Rejected as e:

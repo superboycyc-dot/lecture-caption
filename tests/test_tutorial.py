@@ -60,7 +60,12 @@ class TourTests(TestCase):
             self.assertTrue(win.auto_update.isChecked())
             self.assertEqual(
                 [action.text() for action in win.notes.menu.actions()],
-                ["查看源代码", "立即整理" if win.notes_on.isChecked() else "立即整理（自动笔记已关闭）", "打开文件夹"],
+                [
+                    "查看源代码",
+                    "立即整理" if win.notes_on.isChecked() else "立即整理（自动笔记已关闭）",
+                    "最近笔记",
+                    "打开文件夹",
+                ],
             )
             for action in win.notes.menu.actions():
                 self.assertIn("text-align:left", action.defaultWidget().styleSheet())

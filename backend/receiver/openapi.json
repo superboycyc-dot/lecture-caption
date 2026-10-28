@@ -161,7 +161,21 @@
           "503": {
             "description": "Unavailable; no acknowledgment"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "X-Lecture-Usage-IP",
+            "in": "header",
+            "required": false,
+            "description": "Set to 1 only after explicit acceptance of IP collection. Receiver records observed source IP, receipt time and batch event IDs for 30 days. Missing header does not enable IP storage.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ]
       }
     },
     "/healthz": {

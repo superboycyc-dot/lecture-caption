@@ -435,6 +435,7 @@ class Controls(QWidget):
         self.sig.update_result.connect(self.update_received)
         self.notes.summary_requested.connect(self.summarise_now)
         self.notes.import_requested.connect(self.import_notes)
+        self.notes.recent_requested.connect(self.open_recent_note)
         self.notes.save_failed.connect(self.error)
         self.notes.content_changed.connect(self.refresh_end_button)
         self.sig.notes.connect(lambda *_: self.refresh_end_button())
@@ -1183,6 +1184,7 @@ class Controls(QWidget):
         )
 
     def sync_capture_controls(self):
+        self.notes.refresh_recent_button()
         active = self.engine.active
         self.start.setText("Ⅱ 暂停" if active else "▶ 继续" if self.paused else "▶ 开始")
         self.refresh_end_button()
@@ -1349,6 +1351,24 @@ class Controls(QWidget):
                 self.status.setText("笔记已另存；应用内备份仍保留。")
             except OSError:
                 self.error("另存失败，请检查目录权限。应用内备份仍安全保留。")
+
+    def open_recent_note(self, path):
+        from recent_notes import read_note
+
+        if self.finishing or self.paused or self.engine.active or self.engine.notes_busy:
+            self.error("请先结束当前收音并等待笔记整理完成，再打开历史笔记。")
+            return
+        if not self.notes.end_editing():
+            return
+        try:
+            document = read_note(DATA_ROOT, path)
+            self.engine.open_saved_document(document)
+            self.notes.set_document(document)
+            self.lecture_ended = False
+            self.refresh_end_button()
+            self.status.setText("已打开历史笔记；修改或继续记录时会保存续写副本，原文件保留。")
+        except (OSError, ValueError):
+            self.error("无法打开笔记：文件已不可用，或当前笔记仍在整理中。")
 
     def import_notes(self):
         if self.finishing or not self.notes.end_editing():

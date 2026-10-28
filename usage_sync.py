@@ -1,4 +1,4 @@
-"""Opt-in numeric snapshots; no audio, text, credentials or device identifiers."""
+"""Opt-in usage snapshots with consented receiver-side source IP recording; no audio, text, credentials or device identifiers."""
 
 import json
 from functools import wraps
@@ -18,7 +18,7 @@ import requests
 PUBLIC_UPLOAD_READY = True
 DEFAULT_USAGE_ENDPOINT = "https://orangepiaipro-us.taile2de37.ts.net/v1/usage/batch"
 USAGE_NOTICE = "分享用量统计，帮助改进软件（可选）"
-USAGE_DETAIL = "仅含录音次数、时长和转译词数/字数，不含录音、原文、译文或笔记。同意后联网同步至开发者后台，可随时关闭。"
+USAGE_DETAIL = "包含录音次数、时长、转译词数/字数及每次上传的连接 IP 地址，不含录音、原文、译文或笔记。IP 用于统计来源和排查异常，保留 30 天；可随时关闭分享。"
 FIELDS = ("recording_count", "duration_ms", "source_words", "source_chars", "translated_words", "translated_chars")
 MAX_REVISION = 2**53 - 1
 
@@ -251,6 +251,7 @@ class UsageReporter:
                 with send(
                     endpoint,
                     json={"schema_version": 1, "events": events},
+                    headers={"X-Lecture-Usage-IP": "1"},
                     timeout=(3, 5),
                     allow_redirects=False,
                     stream=True,

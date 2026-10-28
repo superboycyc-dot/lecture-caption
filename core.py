@@ -364,6 +364,30 @@ class Engine:
             self.revise_dirty = bool(document)
         self.save_notes()
 
+    def open_saved_document(self, document):
+        """View a saved note; create a separate session only on edit or capture."""
+        if len(document.encode("utf-8")) > 2_000_000:
+            raise ValueError("Note exceeds 2 MB")
+        with self.save_lock, self.notes_lock:
+            if (
+                self.active
+                or self.notes_busy
+                or self.pending
+                or self.inflight
+                or self.live_utterances
+                or self.finish_requested.is_set()
+            ):
+                raise ValueError("Current lecture is still processing")
+            self.session_dir = None
+            self.sections = [document] if document.strip() else []
+            self.note_title = self.title_from(document)
+            self.document_revision += 1
+            self.revise_dirty = False
+            self.notes_editing = False
+            self.source_paragraphs.clear()
+            self.latest_caption = None
+            self.usage_session_key = None
+
     @staticmethod
     def title_from(document):
         import re
@@ -372,6 +396,8 @@ class Engine:
         return match.group(1).strip()[:100] if match else "课堂笔记"
 
     def finish(self):
+        if self.sections and self.session_dir is None:
+            self.ensure_session()
         self.finished.clear()
         self.stop()
         self.finish_requested.set()

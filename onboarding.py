@@ -124,7 +124,9 @@ class SetupWizard(QDialog):
         terms_row.addWidget(self.terms_link)
         terms_row.addStretch()
         welcome.addLayout(terms_row)
-        disclosure = QLabel("仅同步录音次数、时长及词数/字数，不上传录音或文本；联网后自动重试，可在设置中关闭。")
+        disclosure = QLabel(
+            "同步录音次数、时长、词数/字数及每次上传的连接 IP（保留 30 天），不上传录音或文本；可在设置中关闭。"
+        )
         disclosure.setWordWrap(True)
         disclosure.setStyleSheet("font-size:12px;color:#72849B;")
         welcome.addWidget(disclosure)
