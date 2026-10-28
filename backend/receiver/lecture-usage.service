@@ -1,0 +1,45 @@
+[Unit]
+Description=Lecture Caption anonymous usage receiver
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+User=lecture-usage
+Group=lecture-usage
+WorkingDirectory=/opt/lecture-usage/current
+ExecStart=/opt/lecture-usage/current/venv/bin/python server.py
+Environment=USAGE_DATA=/var/lib/lecture-usage
+Environment=USAGE_TRUST_TAILSCALE=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=25
+UMask=0077
+StateDirectory=lecture-usage
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadWritePaths=/var/lib/lecture-usage
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=32
+LimitNOFILE=256
+LimitCORE=0
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

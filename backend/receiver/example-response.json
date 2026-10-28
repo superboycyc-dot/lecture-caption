@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "acknowledged": [
+    {
+      "event_id": "bd422b78-4478-4c05-9d10-b54e443f136a",
+      "revision": 3
+    }
+  ]
+}

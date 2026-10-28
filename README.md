@@ -44,3 +44,7 @@ Lecture Caption 是面向英语课堂、在线课程和会议学习的免费开�
 - [正式版本与校验和](https://github.com/superboycyc-dot/lecture-caption/releases/latest) · [MIT 许可证](LICENSE)
 
 [![CI](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml/badge.svg)](https://github.com/superboycyc-dot/lecture-caption/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/superboycyc-dot/lecture-caption)](https://github.com/superboycyc-dot/lecture-caption/releases/latest)
+
+## Optional usage backend
+
+The numeric receiver, private Tailscale dashboard, deployment units and regression tests are maintained in [`backend/`](backend/README.md). Backend versions are independent of macOS app releases. Databases, credentials and operational logs are excluded from Git.

@@ -1,0 +1,23 @@
+[Unit]
+Description=Lecture Caption private read-only statistics dashboard
+After=network-online.target tailscaled.service
+Wants=network-online.target
+[Service]
+User=lecture-usage
+Group=lecture-usage
+EnvironmentFile=-/etc/lecture-usage-dashboard.env
+ExecStart=/usr/bin/python3 /opt/lecture-usage-dashboard/dashboard.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/lecture-usage
+RestrictAddressFamilies=AF_INET AF_UNIX
+MemoryMax=96M
+TasksMax=24
+StandardOutput=null
+StandardError=journal
+[Install]
+WantedBy=multi-user.target
