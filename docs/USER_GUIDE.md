@@ -69,3 +69,8 @@ Groq setup shows a fixed key name (`Lecture Caption`), No expiration, and a remi
 Groq recognition/translation does not enable automatic notes. Enable automatic Markdown notes in Settings; use the notes menu's immediate summary to process recognized text still held in the current session. Disabled state and provider failures are now visible. Merely focusing the editor no longer blocks summaries; real edits defer them until saved and idle.
 
 Provider failures show safe reasons and remain visible until a successful notes request. Network/timeouts, 429 and temporary server errors retry at most twice with backoff. Authentication/permission errors do not retry. Pause/End cancels audio retries. End exports transcript Markdown beside the PDF; “另存转录” saves the recognized original at any time.
+
+
+### Recent notes
+
+Choose **打开历史** in the empty notes pane, or use **⋯ → 最近笔记**. The in-app chooser lists up to 50 local backups by modification time, with a title, date/time and the first 15 body characters. Click outside or press Esc to dismiss. Finish capture and processing before switching notes. Viewing is local; editing or continuing creates a separate session and preserves the original.

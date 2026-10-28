@@ -31,6 +31,18 @@ class EditorTests(TestCase):
         self.pane.resize(650, 500)
         self.pane.show()
 
+    def test_recent_button_tracks_empty_document(self):
+        self.app.processEvents()
+        self.assertTrue(self.pane.recent_button.isVisible())
+        self.pane.set_document("# 已有笔记\n\n内容")
+        self.assertFalse(self.pane.recent_button.isVisible())
+        self.pane.set_document("")
+        self.assertTrue(self.pane.recent_button.isVisible())
+        self.engine.active = True
+        self.pane.refresh_recent_button()
+        self.assertFalse(self.pane.recent_button.isVisible())
+        self.engine.active = False
+
     def tearDown(self):
         self.pane.end_editing()
         self.pane.close()
@@ -73,7 +85,7 @@ class EditorTests(TestCase):
         self.assertNotIn("==", self.pane.preview.toPlainText())
         self.assertIn("~~划掉~~", self.pane.original)
         self.assertEqual(
-            [action.text() for action in self.pane.menu.actions()], ["查看源代码", "立即整理", "打开文件夹"]
+            [action.text() for action in self.pane.menu.actions()], ["查看源代码", "立即整理", "最近笔记", "打开文件夹"]
         )
 
     def test_markdown_typing_and_paste_become_rich_text(self):

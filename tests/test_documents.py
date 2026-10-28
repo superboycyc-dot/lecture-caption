@@ -28,6 +28,24 @@ class DocumentTests(TestCase):
         self.patch.stop()
         self.temp.cleanup()
 
+    def test_history_view_is_lazy_and_edits_preserve_original(self):
+        original = self.root / "sessions" / "old" / "notes.md"
+        original.parent.mkdir(parents=True)
+        document = "# 历史课程\n\n原始内容"
+        original.write_text(document)
+        self.engine.open_saved_document(document)
+        self.assertIsNone(self.engine.session_dir)
+        self.assertFalse(self.engine.revise_dirty)
+        self.assertEqual(len(list((self.root / "sessions").iterdir())), 1)
+        self.engine.replace_document("# 历史课程\n\n续写内容")
+        self.assertNotEqual(self.engine.session_dir, original.parent)
+        self.assertEqual(original.read_text(), document)
+        self.engine.active = True
+        with self.assertRaises(ValueError):
+            self.engine.open_saved_document("不能切换")
+        self.engine.active = False
+        self.assertIn("续写内容", self.engine.sections[0])
+
     def test_import_is_baseline_and_edit_is_backed_up(self):
         self.engine.replace_document("# 二叉搜索树\n\n## 上一课\n- 左子树更小。")
         self.engine.pending = [("10:00", "Today we prove the invariant.")]

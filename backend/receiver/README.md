@@ -11,3 +11,8 @@ After deploy verify `/healthz`, a fictional acknowledged upload, conflict/duplic
 Backups: daily at 04:15 UTC, seven retained; each backup is restored into a temporary database and compared. Capacity monitoring is hourly. Operators should monitor systemd failures; timers alone do not send remote alerts. Data retention is intentionally not auto-expired, because removing event IDs can allow old cumulative snapshots to be counted again.
 
 Rollback code: record the old `readlink /opt/lecture-usage/current`, stop only the receiver, restore the previous release symlink and start it again. Do not restore an old database just to roll back code: doing so loses subsequent acknowledged writes. Verify schema compatibility before a future migration; this release has no schema migration.
+
+
+### Consented source IP records
+
+The optional `X-Lecture-Usage-IP: 1` request header enables server-observed IP storage in `upload_sources` (IP, receipt time and batch event IDs, one row per accepted upload, including retries). Never expose this table in the public dashboard. Missing consent headers preserve legacy numeric-only behavior. The existing trusted-loopback proxy restriction applies. Deploy receiver support before distributing the new client. The running receiver removes records older than 30 days every five seconds and on uploads. Backup snapshots remove the IP rows and VACUUM before retention. Existing numeric events and acknowledgements are unchanged.

@@ -28,7 +28,9 @@ def raw(events=None):
     return json.dumps({"schema_version": 1, "events": events or [copy.deepcopy(E)]}).encode()
 
 
-async def request(app, body, ct=b"application/json", path=b"/v1/usage/batch", peer="192.0.2.1", xff=None):
+async def request(
+    app, body, ct=b"application/json", path=b"/v1/usage/batch", peer="192.0.2.1", xff=None, ip_consent=False
+):
     sent = []
 
     async def receive():
@@ -38,6 +40,8 @@ async def request(app, body, ct=b"application/json", path=b"/v1/usage/batch", pe
         sent.append(m)
 
     headers = [(b"content-type", ct)]
+    if ip_consent:
+        headers.append((b"x-lecture-usage-ip", b"1"))
     if xff:
         headers.append((b"x-forwarded-for", xff))
     await app(
@@ -67,6 +71,27 @@ class Tests(unittest.TestCase):
     def rows(self):
         with self.store.connect() as c:
             return c.execute("SELECT * FROM events ORDER BY event_id").fetchall()
+
+    def test_ip_requires_consent_and_uses_trusted_source(self):
+        app = App(self.store, trust_proxy=True)
+        self.assertEqual(asyncio.run(request(app, raw()))[0], 200)
+        with self.store.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM upload_sources").fetchone()[0], 0)
+        for peer, forwarded, expected in [
+            ("192.0.2.1", b"203.0.113.9", "192.0.2.1"),
+            ("127.0.0.1", b"2001:db8::1", "2001:db8::1"),
+        ]:
+            self.assertEqual(asyncio.run(request(app, raw(), peer=peer, xff=forwarded, ip_consent=True))[0], 200)
+            with self.store.connect() as c:
+                self.assertEqual(
+                    c.execute("SELECT source_ip FROM upload_sources ORDER BY id DESC LIMIT 1").fetchone()[0], expected
+                )
+        self.assertEqual(len(self.rows()), 1)
+        with self.store.connect() as c:
+            c.execute("INSERT INTO upload_sources(received_at, source_ip, event_ids) VALUES(0,'192.0.2.99','[]')")
+        self.store.expire_sources()
+        with self.store.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM upload_sources").fetchone()[0], 2)
 
     def test_retries_loss_order_correction_restart(self):
         for _ in range(10):
