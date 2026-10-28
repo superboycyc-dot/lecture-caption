@@ -1,0 +1,177 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lecture Caption Usage",
+    "version": "1"
+  },
+  "paths": {
+    "/v1/usage/batch": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "schema_version",
+                  "events"
+                ],
+                "properties": {
+                  "schema_version": {
+                    "type": "integer",
+                    "const": 1
+                  },
+                  "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "event_id",
+                        "revision",
+                        "day_utc",
+                        "recording_count",
+                        "duration_ms",
+                        "source_words",
+                        "source_chars",
+                        "translated_words",
+                        "translated_chars"
+                      ],
+                      "properties": {
+                        "event_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "day_utc": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        "recording_count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "duration_ms": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 604800000
+                        },
+                        "source_words": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000
+                        },
+                        "source_chars": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000
+                        },
+                        "translated_words": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000
+                        },
+                        "translated_chars": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000
+                        }
+                      }
+                    }
+                  }
+                },
+                "$comment": "Runtime additionally rejects duplicate JSON keys, duplicate event_id (case insensitive), floats including 1.0, booleans in integer fields, invalid calendar dates, >128KiB body; validation is atomic."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Committed highest revisions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "acknowledged"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "type": "integer",
+                      "const": 1
+                    },
+                    "acknowledged": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "event_id",
+                          "revision"
+                        ],
+                        "properties": {
+                          "event_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch; nothing committed"
+          },
+          "409": {
+            "description": "Revision conflict; nothing committed"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "429": {
+            "description": "Rate limited; Retry-After seconds"
+          },
+          "503": {
+            "description": "Unavailable; no acknowledgment"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Alive only"
+          }
+        }
+      }
+    }
+  }
+}

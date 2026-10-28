@@ -1,0 +1,2 @@
+starlette==1.7.0
+hypercorn==0.18.0

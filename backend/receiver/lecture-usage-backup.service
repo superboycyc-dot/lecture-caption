@@ -1,0 +1,18 @@
+[Unit]
+Description=Lecture usage consistent backup and restore verification
+After=lecture-usage.service
+
+[Service]
+Type=oneshot
+User=lecture-usage
+Group=lecture-usage
+ExecStart=/opt/lecture-usage/current/venv/bin/python /opt/lecture-usage/current/ops.py backup
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/lecture-usage /var/backups/lecture-usage
+MemoryMax=256M
+CPUQuota=25%
+LimitCORE=0

@@ -1,0 +1,7 @@
+*.sqlite3*
+*.db*
+*.tgz
+*.zip
+wheelhouse/
+.env
+*.env

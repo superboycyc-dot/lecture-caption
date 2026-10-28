@@ -1,0 +1,10 @@
+[Unit]
+Description=Lecture usage storage capacity alert
+[Service]
+Type=oneshot
+User=lecture-usage
+ExecStart=/opt/lecture-usage/current/venv/bin/python /opt/lecture-usage/current/ops.py monitor
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+LimitCORE=0
