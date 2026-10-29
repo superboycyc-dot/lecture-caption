@@ -34,6 +34,8 @@ from PySide6.QtWidgets import (
     QWidgetAction,
 )
 
+from web_notes import WebMarkdownEdit, export_web_pdf
+
 from math_render import protect_math, render_math, restore_math, insert_math, MATH_SOURCE
 
 HIGHLIGHT = "#FFF1A6"
@@ -160,20 +162,12 @@ def rich_markdown(document):
 
 
 def export_pdf(source, destination):
-    writer = QPdfWriter(str(destination))
-    writer.setCreator("Lecture Caption")
-    match = re.search(r"^# (.+)$", source, re.MULTILINE)
-    if match:
-        writer.setTitle(match.group(1))
-    writer.setResolution(96)
-    writer.setPageSize(QPageSize(QPageSize.A4))
-    writer.setPageMargins(QMarginsF(16, 16, 16, 16))
-    document = markdown_document(source)
-    document.setDocumentMargin(0)
-    document.print_(writer)
-    del writer
-    if not Path(destination).exists() or Path(destination).stat().st_size < 100:
-        raise OSError("PDF export failed")
+    from core import ASSET_ROOT
+
+    try:
+        export_web_pdf(source, destination, ASSET_ROOT)
+    except ValueError as error:
+        raise OSError("PDF 排版失败；Markdown 备份仍保留") from error
 
 
 def choose_export_format(parent, notice="PDF 已自动保存至默认位置"):
@@ -339,7 +333,7 @@ class NotesPane(QWidget):
     save_failed = Signal(str)
     content_changed = Signal()
 
-    def __init__(self, engine, assets, data_root):
+    def __init__(self, engine, assets, data_root, *, legacy_editor=False):
         super().__init__()
         self.engine, self.data_root = engine, data_root
         self.has_content = self.loading = self.saving = self.dirty = False
@@ -446,11 +440,12 @@ class NotesPane(QWidget):
         body.addLayout(row)
         self.stack = QStackedWidget()
         self.stack.setStyleSheet("QStackedWidget {background:white;border:0;}")
-        self.preview = RichMarkdownEdit()
+        self.preview = RichMarkdownEdit() if legacy_editor else WebMarkdownEdit(assets)
         self.preview.setPlaceholderText(
             "笔记整理\n\n开始收音后自动生成笔记，也可以直接输入。\n导入上节课的 Markdown，继续记录本节课。"
         )
-        self.preview.setAcceptRichText(True)
+        if isinstance(self.preview, RichMarkdownEdit):
+            self.preview.setAcceptRichText(True)
         self.source = SourceEdit()
         for editor in (self.preview, self.source):
             editor.setStyleSheet("font-size:16px;padding:12px;background:white;color:#1C1C1E;border:0;")
@@ -459,6 +454,8 @@ class NotesPane(QWidget):
             editor.command.connect(self.format)
             self.stack.addWidget(editor)
         self.source.setStyleSheet(self.source.styleSheet() + 'QPlainTextEdit {font-family:"Menlo","PingFang SC";}')
+        if isinstance(self.preview, WebMarkdownEdit):
+            self.preview.load_failed.connect(self.editor_load_failed)
         self.title.installEventFilter(self)
         self.title.textEdited.connect(self.changed)
         body.addWidget(self.stack, 1)
@@ -515,6 +512,10 @@ class NotesPane(QWidget):
         self.edit_idle_timer.setInterval(2500)
         self.edit_idle_timer.timeout.connect(self.resume_after_edit)
 
+    def editor_load_failed(self):
+        self.source_action.setChecked(True)
+        self.save_failed.emit("即时编辑器加载失败，已切换到 Markdown 源码；笔记内容已保留。")
+
     def refresh_recent_button(self):
         self.recent_button.move(
             max(0, (self.stack.width() - self.recent_button.width()) // 2),
@@ -558,9 +559,6 @@ class NotesPane(QWidget):
             return
         with self.engine.notes_lock:
             self.engine.notes_editing = False
-            waiting = bool(self.engine.pending)
-        if waiting:
-            self.engine.force_notes.set()
 
     def leave_editor(self):
         from PySide6.QtWidgets import QApplication
@@ -570,7 +568,6 @@ class NotesPane(QWidget):
             return
         if self.flush_edits():
             self.engine.notes_editing = False
-            self.engine.force_notes.set()
 
     def end_editing(self):
         self.edit_idle_timer.stop()
@@ -601,15 +598,26 @@ class NotesPane(QWidget):
         if self.stack.currentWidget() is self.source:
             return self.source.toPlainText()
         title = self.title.text().strip().replace("\n", " ") or "课堂笔记"
-        return "# " + title + "\n\n" + rich_markdown(self.preview.document()) + "\n"
+        body = (
+            self.preview.markdown()
+            if isinstance(self.preview, WebMarkdownEdit)
+            else rich_markdown(self.preview.document())
+        )
+        return "# " + title + "\n\n" + body + "\n"
 
     def flush_edits(self):
         self.timer.stop()
+        try:
+            if isinstance(self.preview, WebMarkdownEdit) and self.stack.currentWidget() is self.preview:
+                self.preview.markdown()
+        except ValueError:
+            self.save_failed.emit("编辑器尚未完成保存，请稍后重试；编辑内容仍在窗口中。")
+            return False
         if not self.dirty:
             return True
-        document = self.markdown()
         self.saving = True
         try:
+            document = self.markdown()
             snapshot = time.monotonic() - self.last_snapshot > 60
             self.engine.replace_document(document, snapshot=snapshot)
             if snapshot:
@@ -630,7 +638,10 @@ class NotesPane(QWidget):
         title, body = (match.group(1), document[match.end() :]) if match else ("", document)
         self.title.setText(title)
         self.title.setToolTip(title)
-        markdown_document(body, self.preview.document())
+        if isinstance(self.preview, WebMarkdownEdit):
+            self.preview.set_markdown(body)
+        else:
+            markdown_document(body, self.preview.document())
         self.source.setPlainText(document)
         self.loading = False
         self.dirty = False
@@ -651,6 +662,16 @@ class NotesPane(QWidget):
     def update(self, document, path):
         if self.saving or self.dirty or self.engine.notes_editing:
             return
+        if isinstance(self.preview, WebMarkdownEdit) and self.preview.ready:
+            self.saving = True
+            try:
+                self.preview.markdown()
+            except ValueError:
+                return
+            finally:
+                self.saving = False
+            if self.dirty or self.engine.notes_editing:
+                return
         with self.engine.notes_lock:
             content = "\n\n".join(self.engine.sections)
         if "界面示例" in path:
@@ -658,10 +679,13 @@ class NotesPane(QWidget):
         self.has_content = bool(content)
         self.content_changed.emit()
         if content != self.original:
-            bar = self.preview.verticalScrollBar()
-            old = bar.value()
-            self.set_document(content)
-            bar.setValue(old)
+            if isinstance(self.preview, WebMarkdownEdit):
+                self.set_document(content)
+            else:
+                bar = self.preview.verticalScrollBar()
+                old = bar.value()
+                self.set_document(content)
+                bar.setValue(old)
 
     def note_status(self, message):
         self.summary_action.setToolTip(message)
@@ -683,6 +707,9 @@ class NotesPane(QWidget):
                 cursor.movePosition(QTextCursor.StartOfBlock)
                 cursor.insertText({"h1": "# ", "h2": "## ", "h3": "### ", "bullet": "- ", "number": "1. "}[command])
             self.source.setTextCursor(cursor)
+            return
+        if isinstance(self.preview, WebMarkdownEdit):
+            self.preview.format(command)
             return
         cursor = self.preview.textCursor()
         if command in ("h1", "h2", "h3"):

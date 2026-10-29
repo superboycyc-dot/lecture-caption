@@ -24,6 +24,8 @@ PACKAGES = [
     "numpy",
     "pycparser",
     "PySide6-Essentials",
+    "PySide6-Addons",
+    "PySide6-WebEngine",
     "requests",
     "scipy",
     "shiboken6",

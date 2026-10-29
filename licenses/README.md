@@ -19,6 +19,8 @@ Generated from installed distribution metadata. Each component retains its own t
 - numpy 2.5.4: 17 distribution license/notice files retained.
 - pycparser 3.11: 1 distribution license/notice files retained.
 - PySide6_Essentials 6.12.0: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.
+- PySide6_Addons 6.12.0: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.
+- PySide6_WebEngine 6.12.0.140: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.
 - requests 2.34.2: 2 distribution license/notice files retained.
 - scipy 1.18.1: 1 distribution license/notice files retained.
 - shiboken6 6.12.0: LGPL/GPL alternative; see root LGPL-3.0.txt and GPL-3.0.txt and THIRD_PARTY_NOTICES.md.

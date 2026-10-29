@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/AppIcon.png" width="128" alt="Lecture Caption 图标"></p>
 
-3.1.0 新增软件内历史笔记选择与统一浅蓝卡片界面。正式版提供带拖拽提示的 DMG 安装窗口。每 30 秒追加新增笔记，每 5 分钟整合此前全部笔记；结束时自动保存 PDF 和转录 Markdown 到默认导出目录，可点击“另存转录”。Groq 整理失败提示保留至下一次成功。
+3.2.0 接入离线 Vditor 即时 Markdown 编辑器：公式采用 KaTeX，与正文协调排版，表格直接编辑。正式版提供带拖拽提示的 DMG 安装窗口。每 1 分钟追加新增笔记，每 10 分钟整合此前全部笔记；结束时自动保存 PDF 和转录 Markdown 到默认导出目录，可点击“另存转录”。Groq 整理失败提示保留至下一次成功。
 <h1 align="center">Lecture Caption</h1>
 <p align="center">听懂每一句，记住每个关键点。<br>macOS 双语课堂字幕与实时 Markdown 笔记</p>
 
@@ -13,7 +13,7 @@
 ## 下载与开始
 
 
-[![立即下载 Mac 版（M 系列）](https://img.shields.io/badge/%E7%AB%8B%E5%8D%B3%E4%B8%8B%E8%BD%BD-Mac_M%E7%B3%BB%E5%88%97_%C2%B7_v3.1.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.1.0/LectureCaption-3.1.0-macOS-arm64.dmg)
+[![立即下载 Mac 版（M 系列）](https://img.shields.io/badge/%E7%AB%8B%E5%8D%B3%E4%B8%8B%E8%BD%BD-Mac_M%E7%B3%BB%E5%88%97_%C2%B7_v3.2.0-2877E1?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.2.0/LectureCaption-3.2.0-macOS-arm64.dmg)
 
 点击上方蓝色按钮直接下载 DMG，无需 GitHub 账号。双击镜像，把 Lecture Caption 拖到 Applications（应用程序）文件夹。
 
@@ -23,11 +23,11 @@
 4. 打开应用，阅读并勾选同意[《软件使用规则》](docs/SOFTWARE_RULES.zh-CN.md)，首页明确说明同时授权数字用量分享，无需另行勾选；再按首次使用指南点“连接至 Groq 取得 API”，注册/登录后创建并复制自己的 key，回到应用点“下一步”。软件自动验证并保存到钥匙串，同时准备 Apple 本地备用能力。
 5. 跟着箭头教程认识按钮，选音源后点“开始”。无需终端、Python 或部署服务器。
 
-**公开下载入口：** [下载最新版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，选择 `LectureCaption-3.1.0-macOS-arm64.dmg`（M 系列 Mac）。
+**公开下载入口：** [下载最新版](https://github.com/superboycyc-dot/lecture-caption/releases/latest)，选择 `LectureCaption-3.2.0-macOS-arm64.dmg`（M 系列 Mac）。
 
 ![蓝白控制面板](docs/workspace-blue.png)
 
-v3.1.0 支持**数字用量统计**（首次明确勾选授权后启用，可在设置中关闭），新版规则额外说明连接 IP 的用途和 30 天保留期，升级后须重新同意才恢复上传；IP 入库需运营方部署配套后台，普通数字统计仍通过已验收的公网 HTTPS 接口；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
+v3.2.0 支持**数字用量统计**（首次明确勾选授权后启用，可在设置中关闭），新版规则额外说明连接 IP 的用途和 30 天保留期，升级后须重新同意才恢复上传；IP 入库需运营方部署配套后台，普通数字统计仍通过已验收的公网 HTTPS 接口；普通用户无需安装 Tailscale。详见[隐私说明](docs/PRIVACY.md)和[独立公网验收](https://github.com/superboycyc-dot/lecture-caption/actions/runs/40411300895)。
 
 ## 当前功能
 
@@ -38,7 +38,7 @@ v3.1.0 支持**数字用量统计**（首次明确勾选授权后启用，可在
 - 设置按需弹出；字号、后端、字幕显示语言与透明度等偏好自动保存。
 - 可选 Apple 本地英文识别（实验）与英中翻译（macOS 15+），不自动回退到云端。
 - 字幕默认最多8秒一段，加上网络/推理延迟；不是逐字同传。
-- 笔记约每30秒追加、每5分钟整合，支持手动立即整理，保存为 Markdown。
+- 笔记约每1分钟追加、每10分钟整合，支持手动立即整理，保存为 Markdown。
 - 可填课程术语，提示模型保留英文术语、不确定符号标【待核对】。
 - 使用钥匙串加密保存 key；不写入普通配置、日志或命令参数。
 - 不保存原始录音，原文和翻译作为事件保存在 `transcript.jsonl`。
@@ -57,7 +57,7 @@ v3.1.0 支持**数字用量统计**（首次明确勾选授权后启用，可在
 
 数学识别和整理可能出错。老师没有念出的板书、符号和图示不能从音频还原。内置预览和 PDF 支持常用 LaTeX 公式，也可用 Typora / Obsidian 等打开笔记。暂停会停止上传，丢弃尚未识别的音频并标记；保留最后一句时，等字幕出现再暂停。
 
-正式版 `v3.1.0` 支持 Apple Silicon、macOS 14+。用户已在 M5 上确认原始管线能生成英文、中文和笔记；长课时、不同设备及会议软件仍需更多测试。蓝白界面为 Qt 定制主题与半透明效果，不是原生 Liquid Glass 控件。
+正式版 `v3.2.0` 支持 Apple Silicon、macOS 14+。用户已在 M5 上确认原始管线能生成英文、中文和笔记；长课时、不同设备及会议软件仍需更多测试。蓝白界面为 Qt 定制主题与半透明效果，不是原生 Liquid Glass 控件。
 
 笔记与日志位于 `~/Library/Application Support/Lecture Caption/`；笔记窗口可直接打开文件夹。云端模式的音频与转写会发送至你配置的 API；Apple 识别/翻译在本机完成，但开启自动笔记仍会把原文发送给 Groq，详见 [隐私说明](docs/PRIVACY.md)。
 
@@ -73,7 +73,7 @@ macOS 26+ 使用新的 SpeechAnalyzer 本地识别引擎；语音模型与系统
 
 录音中可修改音源、识别与翻译方式：纯翻译切换保留收音与原文识别，重译当前段落；音源或识别方式切换会保存已识别草稿、重新连接输入并丢弃旧会话迟到响应。输入重连期间未识别尾音可能缺失，文档保留缺失提示。右下音量旁绿点表示收音、灰点表示停止、红色感叹号表示音频设备错误（悬停查看）。当日 API 余量与本机24小时语音请求数紧邻显示，不显示分钟数或处理耗时。回到最新是覆盖在右下角的32px小按钮，上翻出现，到底自动隐藏，不占用内容布局。
 
-笔记约每 30 秒追加新增内容，每 5 分钟整合此前全部笔记（10 分钟时包含 0–10 分钟内容）。增量请求按完整原文段落分批，目标上限为新增原文 6000 字符、近期笔记 2400 字符，输出上限 1800 token；单个超长段落可能超过分批目标。整合时发送完整笔记，并按文档长度分配 1800–6000 token 输出预算。本机保留全部转录原文；开启笔记可能发送当前课堂此前尚未整理的内容。长课时仍受账号额度和模型限制。
+笔记约每 1 分钟追加新增内容，每 10 分钟整合此前全部笔记（10 分钟时包含 0–10 分钟内容）。增量请求按完整原文段落分批，目标上限为新增原文 6000 字符、近期笔记 2400 字符，输出上限 1800 token；单个超长段落可能超过分批目标。整合时发送完整笔记，并按文档长度分配 1800–6000 token 输出预算。本机保留全部转录原文；开启笔记可能发送当前课堂此前尚未整理的内容。长课时仍受账号额度和模型限制。
 
 ## 用量统计后台源码
 

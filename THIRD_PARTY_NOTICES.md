@@ -22,3 +22,7 @@ Offline formula rendering uses Matplotlib and its pinned runtime dependencies (i
 ## DMG build tools
 
 The release process uses dmgbuild (MIT), ds-store (MIT) and mac-alias (MIT), pinned in requirements-dev.txt. These tools create the installer image and Finder layout; their Python modules are not part of the application runtime. Source and license notices: https://github.com/dmgbuild/dmgbuild, https://github.com/dmgbuild/ds_store, https://github.com/dmgbuild/mac_alias.
+
+## Offline notes editor
+
+Vditor 3.11.2 (MIT), https://github.com/Vanessa219/vditor, distributed as an unmodified runtime subset under `assets/notes/vditor/`. Registry SHA-512 integrity and provenance are recorded in `PROVENANCE.json`. Includes Lute 1.7.6 (Mulan PSL v2), KaTeX 0.16.9 (MIT) and mhchem (MIT adaptations of Apache-2.0 code) with bundled fonts. License files are retained next to these components. Qt WebEngine/Chromium and Qt WebChannel are dynamically loaded from the pinned official PySide6 distributions; see the retained LGPL/GPL terms and official [Qt WebEngine third-party notices](https://doc.qt.io/qt-6/qtwebengine-3rdparty.html), plus the Chromium notices embedded in the upstream WebEngine resources. Notes editor assets load locally; off-record web profiles do not persist browsing data.

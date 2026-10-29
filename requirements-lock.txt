@@ -5,6 +5,8 @@ idna==3.20
 numpy==2.5.4
 pycparser==3.11
 PySide6_Essentials==6.12.0
+PySide6_Addons==6.12.0
+PySide6_WebEngine==6.12.0.140
 requests==2.34.2
 scipy==1.18.1
 shiboken6==6.12.0

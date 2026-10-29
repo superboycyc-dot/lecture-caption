@@ -113,11 +113,35 @@ class DocumentTests(TestCase):
         self.assertEqual(self.engine.note_title, "最终课程主题")
         self.assertIn("定义与推导", (self.engine.session_dir / "notes.md").read_text())
 
+    def test_ten_minute_revision_and_no_extra_append_on_early_wake(self):
+        self.assertEqual(core.DEFAULTS["notes_interval"], 60)
+        self.assertEqual(core.DEFAULTS["revise_interval"], 600)
+        self.engine.replace_document("# 已有笔记\n- 概念")
+        self.engine.pending = [("10:00", "synthetic new material")]
+        self.engine.api = Mock()
+        self.engine.api.chat.return_value = "# 概念与依赖\n- 概念"
+        self.engine.last_revise = time.monotonic() - 301
+        self.engine.force_notes.set()
+        deadline = time.monotonic() + 1
+        while self.engine.force_notes.is_set() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.03)
+        self.engine.api.chat.assert_not_called()
+        self.engine.last_revise = time.monotonic() - 601
+        self.engine.force_notes.set()
+        deadline = time.monotonic() + 2
+        while self.engine.revise_dirty and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertFalse(self.engine.revise_dirty)
+        self.assertEqual(self.engine.pending, [("10:00", "synthetic new material")])
+        self.assertEqual(self.engine.api.chat.call_count, 1)
+        self.assertEqual(self.engine.api.chat.call_args.args[1], core.REVISE_PROMPT)
+
     def test_auto_revise_runs_without_new_pending_fragments(self):
         self.engine.replace_document("# 已有笔记\n- 前文概念")
         self.engine.api = Mock()
         self.engine.api.chat.return_value = "# 概念与依赖\n- 前文概念"
-        self.engine.last_revise = time.monotonic() - 301
+        self.engine.last_revise = time.monotonic() - 601
         self.engine.force_notes.set()
         deadline = time.monotonic() + 3
         while self.engine.revise_dirty and time.monotonic() < deadline:
@@ -139,7 +163,7 @@ class DocumentTests(TestCase):
 
         api.chat.side_effect = response
         self.engine.api = api
-        self.engine.last_revise = time.monotonic() - 301
+        self.engine.last_revise = time.monotonic() - 601
         self.engine.force_notes.set()
         self.assertTrue(entered.wait(2))
         self.engine.active = True

@@ -9,6 +9,22 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def sign_webengine(app, identity):
+    """Keep Qt's required Chromium exceptions on the helper, not the main app."""
+    if not identity:
+        return
+    framework = app / "Contents/Frameworks/PySide6/Qt/lib/QtWebEngineCore.framework"
+    helper = framework / "Versions/A/Helpers/QtWebEngineProcess.app"
+    entitlements = helper / "Contents/Resources/QtWebEngineProcess.entitlements"
+    if not entitlements.is_file():
+        raise RuntimeError("Missing upstream Qt WebEngine helper entitlements")
+    common = ["codesign", "--force", "--sign", identity, "--timestamp", "--options", "runtime"]
+    subprocess.run(common + ["--entitlements", str(entitlements), str(helper)], check=True)
+    # Refresh enclosing resource seals without recursively replacing helper rights.
+    subprocess.run(common + [str(framework)], check=True)
+    subprocess.run(common + ["--entitlements", str(ROOT / "native/Release.entitlements"), str(app)], check=True)
+
+
 def main():
     identity = os.environ.get("LECTURE_CODESIGN_IDENTITY", "")
     if identity and not (
@@ -35,6 +51,7 @@ def main():
         cwd=ROOT,
     )
     app = ROOT / "dist/Lecture Caption.app"
+    sign_webengine(app, identity)
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
     print(app)
 

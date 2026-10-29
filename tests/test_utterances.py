@@ -161,6 +161,7 @@ class ContinuityTests(unittest.TestCase):
             api = Mock()
             api.chat.return_value = "## 定义与用途\n- Invariant must hold after each iteration."
             engine.api = api
+            engine.manual_summary.set()
             engine.force_notes.set()
             self.wait(lambda: len(engine.sections) == 2)
             self.assertTrue(engine.sections[1].startswith("## 定义与用途"))
