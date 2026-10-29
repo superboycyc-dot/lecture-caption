@@ -3,7 +3,7 @@
 import json
 import re
 from pathlib import Path
-from PySide6.QtCore import QObject, Signal, Slot, QUrl, QEventLoop, QTimer, Qt
+from PySide6.QtCore import QObject, Signal, Slot, QUrl, QEventLoop, QTimer, Qt, QEvent
 from PySide6.QtGui import QPageLayout, QPageSize, QKeySequence, QShortcut
 from PySide6.QtCore import QMarginsF
 from PySide6.QtWebChannel import QWebChannel
@@ -154,7 +154,31 @@ class WebMarkdownEdit(QWebEngineView):
         self.load_timer.timeout.connect(lambda: self.load_failed.emit() if not self.ready else None)
         self.load_timer.start(15000)
         self.loaded.connect(self.load_timer.stop)
+        self.loadFinished.connect(self.watch_input)
         self.setUrl(QUrl.fromLocalFile(str(page.entry)))
+
+    def watch_input(self, *_):
+        proxy = self.focusProxy()
+        if proxy:
+            proxy.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        # Mark a native edit before the renderer's asynchronous input message,
+        # so an arriving AI response cannot replace a just-typed character.
+        if self.ready:
+            modifying = event.type() == QEvent.InputMethod
+            if event.type() == QEvent.KeyPress:
+                modifying = bool(event.text() and event.text().isprintable()) or event.key() in (
+                    Qt.Key_Backspace,
+                    Qt.Key_Delete,
+                    Qt.Key_Return,
+                    Qt.Key_Enter,
+                )
+                if event.modifiers() & Qt.ControlModifier:
+                    modifying = event.key() in (Qt.Key_V, Qt.Key_X, Qt.Key_Z)
+            if modifying:
+                self.textChanged.emit()
+        return super().eventFilter(watched, event)
 
     def receive(self, epoch, value):
         if epoch != self.epoch or value == self.value:
@@ -190,6 +214,7 @@ class WebMarkdownEdit(QWebEngineView):
 
     def format(self, name):
         if self.ready:
+            self.textChanged.emit()
             self.page().runJavaScript(f"window.command({json.dumps(name)})")
 
 

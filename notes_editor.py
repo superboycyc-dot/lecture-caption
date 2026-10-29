@@ -662,6 +662,16 @@ class NotesPane(QWidget):
     def update(self, document, path):
         if self.saving or self.dirty or self.engine.notes_editing:
             return
+        if isinstance(self.preview, WebMarkdownEdit) and self.preview.ready:
+            self.saving = True
+            try:
+                self.preview.markdown()
+            except ValueError:
+                return
+            finally:
+                self.saving = False
+            if self.dirty or self.engine.notes_editing:
+                return
         with self.engine.notes_lock:
             content = "\n\n".join(self.engine.sections)
         if "界面示例" in path:

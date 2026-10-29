@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QEventLoop, QTimer, QCoreApplication, QEvent
 from web_notes import WebMarkdownEdit, editor_markdown, javascript
@@ -84,6 +85,19 @@ class WebNotesTests(TestCase):
         self.assertIn("人工补充", self.pane.source.toPlainText())
         self.pane.source_action.setChecked(False)
         self.assertIn("人工补充", self.pane.original)
+
+    def test_native_key_protects_text_before_renderer_callback(self):
+        self.pane.set_document("# 标题\n\nSynthetic words")
+        javascript(self.editor.page(), "window.snapshot()")
+        self.editor.setFocus()
+        self.app.processEvents()
+        QTest.keyClicks(self.editor.focusProxy(), "x")
+        self.assertTrue(self.pane.dirty)
+        self.assertTrue(self.engine.notes_editing)
+        self.pane.update("# 过时更新\n\n替换内容", "notes.md")
+        self.assertNotIn("过时更新", self.pane.original)
+        self.assertTrue(self.pane.flush_edits())
+        self.assertIn("x", self.pane.original)
 
     def test_toolbar_formats_selection_and_heading(self):
         self.pane.set_document("# 标题\n\nSynthetic words")
