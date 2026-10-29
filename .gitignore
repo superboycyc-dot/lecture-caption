@@ -22,3 +22,7 @@ logs/
 *.log
 .coverage
 .pytest_cache/
+
+# Pinned offline editor distribution is source, not an app build.
+!assets/notes/vditor/dist/
+!assets/notes/vditor/dist/**

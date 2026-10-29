@@ -138,9 +138,20 @@ class RecentNotesPopup(QDialog):
         self.empty.setStyleSheet("color:#73859B;padding:32px;")
         layout.addWidget(self.empty)
         self.list.installEventFilter(self)
-        QApplication.instance().installEventFilter(self)
         self.list.itemClicked.connect(self.choose)
         self.list.itemActivated.connect(self.choose)
+
+    def showEvent(self, event):
+        # Qt.Popup handles native outside clicks. Watch only the known owner
+        # window for synthetic events, not every WebEngine internal QObject.
+        self.owner_window = self.parentWidget().window()
+        self.owner_window.installEventFilter(self)
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        if getattr(self, "owner_window", None):
+            self.owner_window.removeEventFilter(self)
+        super().hideEvent(event)
 
     def eventFilter(self, watched, event):
         if self.isVisible():

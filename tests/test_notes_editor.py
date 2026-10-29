@@ -27,7 +27,7 @@ class EditorTests(TestCase):
         self.patch = patch.object(core, "DATA_ROOT", self.root)
         self.patch.start()
         self.engine = core.Engine(Signals(), {"notes_interval": 3600})
-        self.pane = notes_editor.NotesPane(self.engine, core.ASSET_ROOT, self.root)
+        self.pane = notes_editor.NotesPane(self.engine, core.ASSET_ROOT, self.root, legacy_editor=True)
         self.pane.resize(650, 500)
         self.pane.show()
 

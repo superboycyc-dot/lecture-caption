@@ -1,0 +1,73 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' qrc: 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src data:; connect-src 'none'">
+<link rel="stylesheet" href="vditor/index.css"><link rel="stylesheet" href="vditor/dist/js/katex/katex.min.css">
+<link rel="stylesheet" href="vditor/dist/css/content-theme/light.css">
+<style>
+html,body,#editor {height:100%;margin:0;background:white;color:#1c1c1e}
+.vditor {border:0!important;border-radius:0!important} .vditor-toolbar {display:none!important}
+.vditor-reset {font:16px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;padding:16px!important}
+.vditor-reset .katex {font-size:1em!important} .vditor-reset .katex-display {margin:.8em 0;overflow-x:auto;overflow-y:hidden}
+.vditor-reset table {display:table;width:auto;max-width:100%;border-collapse:collapse}
+.vditor-reset td,.vditor-reset th {padding:7px 10px;border:1px solid #cfd7df;min-width:45px}
+.vditor-reset pre {white-space:pre-wrap} .vditor-ir__preview {max-width:100%}
+mark {background:#fff1a6} #print {display:none}
+@media print {#editor {display:none!important} #print {display:block!important;height:auto} .vditor-reset {padding:0!important;font-size:11pt} tr, .katex-display {break-inside:avoid} thead {display:table-header-group} a {color:inherit}}
+</style>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script id="vditorLuteScript" src="vditor/dist/js/lute/lute.min.js"></script><script id="vditorI18nScriptzh_CN" src="vditor/dist/js/i18n/zh_CN.js"></script>
+<script id="vditorKatexScript" src="vditor/dist/js/katex/katex.min.js"></script><script id="vditorKatexChemScript" src="vditor/dist/js/katex/mhchem.min.js"></script>
+<script src="vditor/index.min.js"></script></head><body><div id="editor"></div><div id="print" class="vditor-reset"></div><script src="vditor/dist/js/icons/ant.js"></script>
+<script>
+let editor, bridge, epoch=0, loading=false, composing=false, modified=false;
+window.ready=false;
+function notify() {if (!loading && window.ready) {modified=true;bridge.edited(epoch,editor.getValue());}}
+new QWebChannel(qt.webChannelTransport,channel=>{
+ window.channelReady=true;bridge=channel.objects.notes;
+ editor=new Vditor('editor',{
+  cdn:new URL('vditor',location.href).href,mode:'ir',height:'100%',minHeight:100,
+  placeholder:'开始收音后自动生成笔记，也可以直接输入 Markdown。',lang:'zh_CN',i18n:window.VditorI18n,icon:'',cache:{enable:false},counter:{enable:false},
+  toolbar:['bold','italic','strike','headings','list','ordered-list','table','undo','redo'],
+  toolbarConfig:{pin:false,hide:true},
+  hint:{emoji:{}},preview:{delay:0,hljs:{enable:false},math:{engine:'KaTeX',inlineDigit:true},
+   markdown:{mark:true,sanitize:true,autoSpace:false,fixTermTypo:false},
+   theme:{current:'light',path:new URL('vditor/dist/css/content-theme',location.href).href}},
+  input:notify,after(){window.ready=true;bridge.started();}
+ });
+});
+window.setDocument=(value,version)=>{
+ loading=true;modified=false;epoch=version;
+ const area=document.querySelector('.vditor-ir');const top=area?area.scrollTop:0;
+ editor.setValue(value,true);
+ if(area)area.scrollTop=top;
+ loading=false;
+};
+document.addEventListener('beforeinput',()=>{if(window.ready&&!loading){modified=true;bridge.touched(epoch);}},true);
+document.addEventListener('compositionstart',()=>{composing=true;},true);
+document.addEventListener('compositionend',()=>{composing=false;notify();},true);
+window.snapshot=()=>({epoch,value:editor.getValue(),composing,modified});
+window.command=name=>{
+ editor.focus();
+ const map={bold:'bold',italic:'italic',strike:'strike',bullet:'list',number:'ordered-list'};
+ const el=document.querySelector('.vditor-toolbar [data-type="'+(map[name]||name)+'"]');
+ if(el)el.click();
+ else if(/^h[123]$/.test(name)){
+  // Use Vditor's heading menu so existing content is preserved.
+  const item=document.querySelector('.vditor-toolbar [data-tag="'+name+'"]');
+  if(item)item.click();
+ }else if(name==='highlight'){
+  const selected=editor.getSelection();editor.insertValue('=='+selected+'==',true);
+ }
+ notify();
+};
+window.preparePrint=value=>{
+ const target=document.getElementById('print');
+ document.getElementById('editor').style.display='none';target.style.display='block';
+ target.innerHTML=editor.vditor.lute.Md2HTML(value);
+ target.querySelectorAll('.language-math').forEach(el=>{
+  const tex=el.textContent;
+  try {katex.render(tex,el,{displayMode:el.tagName==='DIV',throwOnError:false,trust:false});}
+  catch(error) {el.textContent=tex;}
+ });
+ return document.fonts.ready.then(()=>{window.printReady=true;});
+};
+</script></body></html>

@@ -293,7 +293,8 @@ class Controls(QWidget):
                 config = json.loads((DATA_ROOT / "config.json").read_text())
             except Exception:
                 pass
-        config.update(notes_interval=30, revise_interval=300)
+        if config.get("notes_cadence_version") != 2:
+            config.update(notes_interval=60, revise_interval=600, notes_cadence_version=2)
         self.rules_accepted_version = config.get("rules_accepted_version", "")
         self.rules_dialog = None
         self.sig = Signals()
@@ -639,9 +640,9 @@ class Controls(QWidget):
         self.interval.setCurrentIndex(max(0, self.interval.findData(self.engine.config["chunk_seconds"])))
         more.addRow("Groq 识别更新间隔", self.interval)
         self.revise_interval = QComboBox()
-        for minutes in range(1, 6):
+        for minutes in (5, 10, 15, 20, 30, 60):
             self.revise_interval.addItem(f"每 {minutes} 分钟", minutes * 60)
-        self.revise_interval.setCurrentIndex(max(0, self.revise_interval.findData(config.get("revise_interval", 300))))
+        self.revise_interval.setCurrentIndex(max(0, self.revise_interval.findData(config.get("revise_interval", 600))))
         self.revise_interval.currentIndexChanged.connect(
             lambda: self.engine.config.update(revise_interval=self.revise_interval.currentData())
         )
@@ -749,7 +750,7 @@ class Controls(QWidget):
         self.stt_backend.setCurrentIndex(self.stt_backend.findData(backend))
         self.translation_backend.setCurrentIndex(self.translation_backend.findData(backend))
         self.interval.setCurrentIndex(self.interval.findData(8))
-        self.revise_interval.setCurrentIndex(self.revise_interval.findData(300))
+        self.revise_interval.setCurrentIndex(self.revise_interval.findData(600))
         self.notes_on.setChecked(profile == "cloud")
         self.engine.notes_enabled = self.notes_on.isChecked()
         self.remember_key.setChecked(True)
@@ -841,6 +842,8 @@ class Controls(QWidget):
             "display_mode": self.display.currentData(),
             "opacity": self.opacity_slider.value(),
             "revise_interval": self.revise_interval.currentData(),
+            "notes_interval": 60,
+            "notes_cadence_version": 2,
             "last_export_dir": self.last_export_dir,
             "default_pdf_dir": self.default_pdf_dir,
             "auto_update": self.auto_update.isChecked(),
@@ -920,7 +923,7 @@ class Controls(QWidget):
         if not enabled:
             self.status.setText("自动笔记已关闭；设置中开启，或点 ⋯ → 立即整理。")
         elif not self.engine.active:
-            self.status.setText("自动笔记已开启 · 收音后约每 30 秒追加笔记，每 5 分钟整合一次。")
+            self.status.setText("自动笔记已开启 · 收音后约每 1 分钟追加笔记，每 10 分钟整合一次。")
 
     def on_note_status(self, message):
         self.note_failure.setText(message)

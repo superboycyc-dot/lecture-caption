@@ -173,6 +173,7 @@ class NotesTests(unittest.TestCase):
             while "Binary search" not in path.read_text() and time.monotonic() < until:
                 time.sleep(0.01)
             self.assertIn("Binary search", path.read_text())
+            engine.manual_summary.set()
             engine.force_notes.set()
             until = time.monotonic() + 3
             while "前提" not in path.read_text() and time.monotonic() < until:

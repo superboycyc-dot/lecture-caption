@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.0 — 2026-10-29 (development preview)
+- Embed offline Vditor instant Markdown editing with KaTeX formulas and stable GFM tables.
+- Match formula size to body text and use the same typesetting for PDF export.
+- Append notes every minute and consolidate the complete document every ten minutes by default; preserve manual/final requests.
+- Protect edits, Chinese composition and source switching from stale model/editor responses; editing idle no longer triggers an extra cloud request.
+
 ## 3.1.0 — 2026-10-27
 - Record consented usage-upload connection IPs on the receiver; update rules and require renewed agreement.
 - Add an in-app recent-notes chooser with titles, modification times and 15-character previews.
