@@ -2,7 +2,7 @@
 <h1 align="center">Lecture Caption</h1>
 <p align="center">听懂每一句，记住每个关键点。<br>Mac 英中双语字幕 · 实时课堂笔记 · 本地原文归档</p>
 
-<p align="center"><a href="https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.1.0/LectureCaption-3.1.0-macOS-arm64.dmg"><img src="https://img.shields.io/badge/下载正式版_3.1.0-DMG_·_Apple_Silicon-2877E1?style=for-the-badge&logo=apple&logoColor=white" alt="下载 DMG 安装包"></a></p>
+<p align="center"><a href="https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.2.0/LectureCaption-3.2.0-macOS-arm64.dmg"><img src="https://img.shields.io/badge/下载正式版_3.2.0-DMG_·_Apple_Silicon-2877E1?style=for-the-badge&logo=apple&logoColor=white" alt="下载 DMG 安装包"></a></p>
 
 [English](README.en.md) · [详细中文说明](README.zh-CN.md) · [使用指南](docs/USER_GUIDE.zh-CN.md) · [隐私说明](docs/PRIVACY.md) · [更新记录](CHANGELOG.md)
 
@@ -26,7 +26,7 @@ Lecture Caption 是面向英语课堂、在线课程和会议学习的免费开�
 
 ## 三步安装
 
-1. [下载 3.1.0 DMG](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.1.0/LectureCaption-3.1.0-macOS-arm64.dmg)，双击打开。
+1. [下载 3.2.0 DMG](https://github.com/superboycyc-dot/lecture-caption/releases/download/v3.2.0/LectureCaption-3.2.0-macOS-arm64.dmg)，双击打开。
 2. 在安装窗口把 **Lecture Caption** 拖到右侧 **Applications（应用程序）** 文件夹。升级时先退出旧应用，再按 Finder 提示替换。
 3. 推出安装磁盘，从“应用程序”打开 Lecture Caption，按首次指南设置权限与所需模型，再点击开始。
 

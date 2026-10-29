@@ -5,10 +5,26 @@ import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from scripts import build_native, notarize_app
+from scripts import build_native, notarize_app, build_app
 
 
 class SigningTests(unittest.TestCase):
+    def test_webengine_rights_are_confined_to_helper_and_enclosing_seals_refreshed(self):
+        identity = "Developer ID Application: Synthetic (TESTTEAM12)"
+        with patch.object(Path, "is_file", return_value=True), patch.object(build_app.subprocess, "run") as run:
+            build_app.sign_webengine(Path("/synthetic/App.app"), identity)
+        self.assertEqual(run.call_count, 3)
+        helper, framework, app = [call.args[0] for call in run.call_args_list]
+        self.assertIn("--timestamp", helper)
+        self.assertTrue(helper[-1].endswith("QtWebEngineProcess.app"))
+        self.assertTrue(helper[-2].endswith("QtWebEngineProcess.entitlements"))
+        self.assertNotIn("--deep", framework)
+        self.assertNotIn("--entitlements", framework)
+        self.assertTrue(app[-2].endswith("native/Release.entitlements"))
+        with patch.object(build_app.subprocess, "run") as run:
+            build_app.sign_webengine(Path("/synthetic/App.app"), "")
+            run.assert_not_called()
+
     def test_native_release_uses_identity_timestamp_and_runtime(self):
         with (
             patch.dict(os.environ, {"LECTURE_CODESIGN_IDENTITY": "Developer ID Application: Synthetic (TESTTEAM12)"}),
