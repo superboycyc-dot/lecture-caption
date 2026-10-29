@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 25
     env:
       QT_QPA_PLATFORM: offscreen
+      QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
       LECTURE_CAPTION_DATA_DIR: /tmp/lecture-caption-ci
       GROQ_API_KEY: ci-placeholder-not-a-real-key
     steps:
