@@ -88,7 +88,10 @@ class WebNotesTests(TestCase):
 
     def test_native_key_protects_text_before_renderer_callback(self):
         self.pane.set_document("# 标题\n\nSynthetic words")
-        javascript(self.editor.page(), "window.snapshot()")
+        javascript(
+            self.editor.page(),
+            "(()=>{editor.focus();const node=document.querySelector('.vditor-ir p').firstChild;const range=document.createRange();range.selectNodeContents(node);range.collapse(false);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);return true;})()",
+        )
         self.editor.setFocus()
         self.app.processEvents()
         QTest.keyClicks(self.editor.focusProxy(), "x")
@@ -96,6 +99,7 @@ class WebNotesTests(TestCase):
         self.assertTrue(self.engine.notes_editing)
         self.pane.update("# 过时更新\n\n替换内容", "notes.md")
         self.assertNotIn("过时更新", self.pane.original)
+        self.wait_for(lambda: "x" in javascript(self.editor.page(), "editor.getValue()"))
         self.assertTrue(self.pane.flush_edits())
         self.assertIn("x", self.pane.original)
 
