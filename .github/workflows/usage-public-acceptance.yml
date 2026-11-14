@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Public DNS and verified HTTPS from outside the tailnet
         run: python3 scripts/check_public_usage.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
