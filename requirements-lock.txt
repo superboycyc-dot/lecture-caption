@@ -2,7 +2,7 @@ certifi==2026.10.23
 cffi==2.1.1
 charset-normalizer==3.5.2
 idna==3.20
-numpy==2.5.4
+numpy==2.5.5
 pycparser==3.12
 PySide6_Essentials==6.12.0
 PySide6_Addons==6.12.0
